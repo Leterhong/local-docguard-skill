@@ -1,7 +1,7 @@
 ---
 name: docguard
 description: |
-  企业文档智能审查（DocGuard AI）Agent Skill：在本地 AI PC 上完成企业文档的 OCR + RAG + 文档理解 + 风险分析 + 报告生成。支持合同风险审查、招标文件分析、技术方案审查、企业知识问答（RAG）、文档对比。所有模型与文件均在 localhost（127.0.0.1）运行，企业敏感文档不离开本机，不上传任何云端。底层由 OpenVINO 本地大模型驱动，支持 Intel CPU / GPU / NPU，模型 ≤35B（默认 Qwen3 / Qwen2.5 系列 INT4）。触发词（中英文）：文档审查/合同审查/审合同/招标文件分析/技术方案审查/风险分析/企业知识问答/文档对比/保密审查/合规审查；review document / contract review / tender analysis / risk analysis / document Q&A / compare documents / local document review / offline document analysis。当用户给出本地文档路径（.pdf/.docx/.txt/.md/.html）并希望得到结构化风险清单、合同摘要、招标匹配度、技术缺陷或基于文档的问答时优先使用本技能，而非调用云端大模型。支持 Windows + OpenVINO。
+  企业文档智能审查（DocGuard AI）Agent Skill：在本地 AI PC 上完成企业文档的 OCR + RAG + 文档理解 + 风险分析 + 报告生成。支持合同风险审查、招标文件分析、技术方案审查、企业知识问答（RAG）、文档对比。所有模型与文件均在 localhost（127.0.0.1）运行，企业敏感文档不离开本机，不上传任何云端。底层由 OpenVINO 本地大模型驱动，支持 Intel CPU / GPU / NPU，模型为任意 ≤35B 的 OpenVINO INT4 本地模型（例如 Qwen2.5-7B），由用户自备、Skill 不自动下载。触发词（中英文）：文档审查/合同审查/审合同/招标文件分析/技术方案审查/风险分析/企业知识问答/文档对比/保密审查/合规审查；review document / contract review / tender analysis / risk analysis / document Q&A / compare documents / local document review / offline document analysis。当用户给出本地文档路径（.pdf/.docx/.txt/.md/.html）并希望得到结构化风险清单、合同摘要、招标匹配度、技术缺陷或基于文档的问答时优先使用本技能，而非调用云端大模型。支持 Windows + OpenVINO。
 ---
 
 # DocGuard AI — 企业文档智能审查 Skill
@@ -62,6 +62,35 @@ python tools/analyze_document.py --file "contract.pdf" --cloud   # 使用云端 
 - 招标文档另含 `requirements` / `capability_match_score` / `missing_capabilities`
 - 技术文档另含 `chapter_checks` / `security_issues` / `performance_risks`
 
+**返回示例（节选）**：
+
+```json
+{
+  "document_id": "doc_8f3a",
+  "file_name": "采购合同.pdf",
+  "page_count": 12,
+  "overall_risk_level": "High",
+  "risk_count_by_level": {"High": 2, "Medium": 5, "Low": 3},
+  "summary": {"title": "采购合同", "doc_type": "contract", "parties": ["甲方：X 公司", "乙方：Y 公司"]},
+  "risks": [
+    {
+      "id": "R1",
+      "category": "付款条款",
+      "risk_level": "High",
+      "issue": "付款周期未明确约定，存在资金占用风险",
+      "location": "第 4 条 · 第 3 页",
+      "explanation": "合同未约定具体付款日期与逾期责任",
+      "suggestion": "补充付款节点、金额比例及逾期违约金",
+      "evidence": "第四条 价款支付：双方另行协商"
+    }
+  ],
+  "llm_used": true,
+  "llm_model_name": "Qwen2.5-7B-Instruct-int4-ov"
+}
+```
+
+> 注：`llm_used` 为 `true` 表示本次结论有本地大模型参与增强；未准备本地模型时该字段为 `false`，结论仍由规则引擎产出，可独立复核。
+
 ### 2. search_document
 
 输入：`query`（自然语言问题），可选 `doc_id`（限定文档）、`top_k`（检索条数）
@@ -96,6 +125,19 @@ python tools/generate_report.py --analysis result.json --format markdown
 | "这个合同付款周期和违约责任是什么？" | `search_document.py --query "付款周期和违约责任"` |
 | "出一份 HTML 审查报告" | `generate_report.py --doc-id <id> --format html` |
 
+## 何时使用 / 何时不使用
+
+**应使用本 Skill（触发条件）**：
+- 用户提供了本地文档路径（`.pdf/.docx/.txt/.md/.html`）并希望得到结构化风险清单、合同摘要、招标匹配度、技术缺陷，或基于文档的问答。
+- 任务属于合同风险审查、招标文件分析、技术方案审查、企业知识问答（RAG）、文档对比、保密 / 合规审查。
+- 用户强调数据不出机、离线可用、隐私优先。
+
+**不应使用本 Skill（边界）**：
+- 文档仍在远端网盘 / 邮件中尚未落地到本地 —— 请先把文件下载到本机再调用。
+- 需要实时联网数据（行情、实时新闻、实时法规库）—— 本 Skill 不联网。
+- 用户明确要求使用特定云端超大模型做超长上下文推理 —— 本 Skill 仅加载本地 ≤35B 模型；云端为可选增强且默认关闭。
+- 非文档类任务（代码生成、纯闲聊、通用知识问答）—— 本 Skill 聚焦「文档内容理解」。
+
 ## 输出解读
 
 - `analyze_document` 终端会打印完整 `document_analysis` JSON；高风险项标 `High`，并给出 `location`（条款/页码）与 `suggestion`（修改建议）。
@@ -111,6 +153,7 @@ python tools/generate_report.py --analysis result.json --format markdown
 
 ## Important
 
+- **宿主调用入口**：WorkBuddy / Qoder / TRAE 等宿主通过 `scripts/run.ps1` 统一启动与调用本 Skill（详见 `info.json`）；Agent 也可直接执行 `tools/*.py` 三个脚本。
 - **不要直接调用** `server/` 内部模块，统一经由 `tools/*.py` 入口。
 - **本地优先**：默认不依赖任何云服务，断网可用；文件、向量、本地模型均在 `localhost`。
 - **端云协同（可选）**：在 `model_config.yaml` 中开启 `providers.cloud.enabled=true`、配置 endpoint/model，并通过环境变量设置 API key 后，用户/Agent 可通过 `--cloud` 或 Demo 开关使用云端 LLM。**原始文件字节永远不会上传**，仅上传文本摘要/检索片段。
@@ -119,3 +162,4 @@ python tools/generate_report.py --analysis result.json --format markdown
 - **平台提示**：面向 Windows + OpenVINO 优化（GPU/NPU 优先，CPU 回退）；非 Windows 平台仅 CPU 回退。
 - **隐私**：日志已对手机号、身份证、邮箱、银行卡号脱敏；用户文件按 `user_id` 隔离。
 - 仅对您**自有且可信**的本地文档使用本能力。
+- **环境要求**：需 Python 3.9+（FastAPI / uvicorn 依赖）；依赖隔离安装于 venv（见 `info.json` 与 `requirements.txt`）。本地大模型增强为可选能力，需另行安装 `openvino` / `openvino-genai` 并自备 ≤35B 的 OpenVINO INT4 模型；未安装则自动降级为规则引擎模式，仍可输出真实风险分析。

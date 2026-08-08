@@ -1,15 +1,43 @@
 """
 真实本地大模型推理测试（OpenVINO GenAI）。
 目的：证明 DocGuard AI 在纯本地（CPU / OpenVINO INT4）条件下，
-能够真正加载 Qwen2.5-7B-Instruct-int4-ov 并完成推理，而非降级绕过大模型。
+能够真正加载本地模型并完成推理，而非降级绕过大模型。
 
-运行环境：F:/Production AI Skills/.openvino/venv/dataanalysis/Scripts/python.exe
-模型路径：F:/Production AI Skills/.openvino/models/Qwen2.5-7B-Instruct-int4-ov
+注意：本测试需在已安装 openvino-genai 的 Python 环境中运行（例如你的本地推理 venv）。
+模型路径通过环境变量 DOCGUARD_LLM_MODEL 指定，或从 model_config.yaml 的 model.path
+（相对本 skill 根目录）读取；未指定时使用默认相对路径 .openvino/models/Qwen2.5-7B-Instruct-int4-ov。
 """
+import os
 import time
+from pathlib import Path
+
 import openvino_genai as ov_genai
 
-MODEL = r"F:/Production AI Skills/.openvino/models/Qwen2.5-7B-Instruct-int4-ov"
+ROOT = Path(__file__).resolve().parent.parent
+
+
+def _resolve_model_path() -> str:
+    env = os.environ.get("DOCGUARD_LLM_MODEL")
+    if env:
+        return env
+    cfg_path = ROOT / "model_config.yaml"
+    if cfg_path.exists():
+        in_model = False
+        for line in cfg_path.read_text(encoding="utf-8").splitlines():
+            s = line.strip()
+            if s.startswith("model:"):
+                in_model = True
+                continue
+            if in_model:
+                if s.startswith("path:"):
+                    p = s.split(":", 1)[1].strip().strip('"').strip("'")
+                    return str(ROOT / p) if not os.path.isabs(p) else p
+                if s and not s.startswith("#") and not s.startswith(" ") and ":" in s and not s.startswith("model"):
+                    in_model = False
+    return str(ROOT / ".openvino" / "models" / "Qwen2.5-7B-Instruct-int4-ov")
+
+
+MODEL = _resolve_model_path()
 
 print("=" * 64)
 print("REAL LOCAL LLM TEST  |  openvino_genai =", ov_genai.__version__)

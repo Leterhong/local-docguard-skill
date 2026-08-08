@@ -35,7 +35,7 @@
   <!-- Local LLM -->
   <rect x="230" y="230" width="180" height="90" rx="10" class="box"/>
   <text x="250" y="260" class="lbl">本地 LLM</text>
-  <text x="250" y="285" class="sub">Qwen2.5-7B-int4-ov</text>
+  <text x="250" y="285" class="sub">示例：Qwen2.5-7B（≤35B，可替换）</text>
   <text x="250" y="303" class="sub">OpenVINO CPU/GPU/NPU</text>
   <text x="250" y="325" class="hl">摘要 · 解释 · 建议增强</text>
 

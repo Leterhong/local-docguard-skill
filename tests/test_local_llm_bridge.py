@@ -1,14 +1,68 @@
 """
 集成验证：DocGuard 的真实本地 LLM 桥接路径。
 直接用 llm_service 内部的 LocalLLMBridge（同一份代码），
-证明流水线在 use_llm=True 时调用的是真·本地 Qwen2.5-7B。
+证明流水线在 use_llm=True 时调用的是真·本地大模型。
+
+注意：需在已安装 openvino-genai 的 Python 环境中运行。
+- PY：OpenVINO 推理解释器，优先读环境变量 DOCGUARD_OPENVINO_PYTHON，
+      其次读 model_config.yaml 的 providers.local.python，最后回退到相对默认路径。
+- SCRIPT：始终为本 skill 内的 openvino_gen_server.py（相对路径，跨机器可用）。
+- MODEL：同 test_local_llm_openvino.py 的解析逻辑（环境变量 / model_config.yaml / 相对默认）。
 """
+import os
 import time
+from pathlib import Path
+
 from server.services.local_llm_bridge import LocalLLMBridge
 
-PY = r"F:/Production AI Skills/.openvino/venv/dataanalysis/Scripts/python.exe"
-SCRIPT = r"F:/Production AI Skills/docguard-skill/server/services/openvino_gen_server.py"
-MODEL = r"F:/Production AI Skills/.openvino/models/Qwen2.5-7B-Instruct-int4-ov"
+ROOT = Path(__file__).resolve().parent.parent
+SCRIPT = str(ROOT / "server" / "services" / "openvino_gen_server.py")
+
+
+def _resolve_python() -> str:
+    env = os.environ.get("DOCGUARD_OPENVINO_PYTHON")
+    if env:
+        return env
+    cfg_path = ROOT / "model_config.yaml"
+    if cfg_path.exists():
+        in_local = False
+        for line in cfg_path.read_text(encoding="utf-8").splitlines():
+            s = line.strip()
+            if s.startswith("local:"):
+                in_local = True
+                continue
+            if in_local:
+                if s.startswith("python:"):
+                    p = s.split(":", 1)[1].strip().strip('"').strip("'")
+                    return p  # 绝对路径，用户自行配置
+                if s and not s.startswith("#") and not s.startswith(" ") and ":" in s:
+                    in_local = False
+    return str(ROOT / ".openvino" / "venv" / "dataanalysis" / "Scripts" / "python.exe")
+
+
+def _resolve_model_path() -> str:
+    env = os.environ.get("DOCGUARD_LLM_MODEL")
+    if env:
+        return env
+    cfg_path = ROOT / "model_config.yaml"
+    if cfg_path.exists():
+        in_model = False
+        for line in cfg_path.read_text(encoding="utf-8").splitlines():
+            s = line.strip()
+            if s.startswith("model:"):
+                in_model = True
+                continue
+            if in_model:
+                if s.startswith("path:"):
+                    p = s.split(":", 1)[1].strip().strip('"').strip("'")
+                    return str(ROOT / p) if not os.path.isabs(p) else p
+                if s and not s.startswith("#") and not s.startswith(" ") and ":" in s and not s.startswith("model"):
+                    in_model = False
+    return str(ROOT / ".openvino" / "models" / "Qwen2.5-7B-Instruct-int4-ov")
+
+
+PY = _resolve_python()
+MODEL = _resolve_model_path()
 
 print("=" * 64)
 print("DocGuard 本地 LLM 桥接集成测试 (openvino-genai 子进程)")

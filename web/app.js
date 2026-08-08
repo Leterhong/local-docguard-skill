@@ -44,7 +44,7 @@ async function refreshHealth(){
   }catch(e){
     $("#dotModel").className="dot err";
     $("#modelLabel").textContent="服务未连接 · 请启动后端";
-    $("#localPill").textContent="localhost:8099 (默认)";
+    $("#localPill").textContent="localhost:8765 (默认)";
     cloudEnabled=false; cloudAvailable=false; localOnly=true;
     updateProviderSwitch();
   }

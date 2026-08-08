@@ -89,7 +89,7 @@
   <!-- Bottom: local models -->
   <rect x="60" y="450" width="880" height="90" rx="10" class="boxg"/>
   <text x="84" y="480" class="hl">本地模型（OpenVINO™ IR · INT4）</text>
-  <text x="84" y="506" class="sub">LLM：Qwen2.5-7B-Instruct-int4-ov（≤35B）·  Embedding：BGE-small-zh</text>
+  <text x="84" y="506" class="sub">LLM：你配置的本地模型（示例：Qwen2.5-7B-Instruct-int4-ov，≤35B）·  Embedding：BGE-small-zh</text>
   <text x="84" y="526" class="sub">未启用本地模型时自动降级为「确定性规则引擎 + 哈希嵌入 + FAISS」，审查/检索/报告仍真实可用。</text>
 
   <!-- Bottom: security -->

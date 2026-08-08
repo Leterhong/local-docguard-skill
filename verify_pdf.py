@@ -29,7 +29,7 @@ pdf.multi_cell(0, 8, text)
 pdf.output(OUT)
 print("PDF generated: %s (%d bytes)" % (OUT, os.path.getsize(OUT)))
 
-BASE = "http://127.0.0.1:8099"
+BASE = "http://127.0.0.1:" + os.environ.get("DOCGUARD_PORT", "8765")
 with open(OUT, "rb") as f:
     up = requests.post(BASE + "/api/upload", files={"file": f}, timeout=30).json()
 assert up.get("success"), "upload failed: %s" % up

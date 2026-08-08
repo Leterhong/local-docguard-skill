@@ -18,7 +18,7 @@ from typing import Any, Dict, Optional
 
 # Server base URL — always localhost.
 DEFAULT_HOST = os.environ.get("DOCGUARD_HOST", "127.0.0.1")
-DEFAULT_PORT = int(os.environ.get("DOCGUARD_PORT", "8099"))
+DEFAULT_PORT = int(os.environ.get("DOCGUARD_PORT", "8765"))
 BASE_URL = f"http://{DEFAULT_HOST}:{DEFAULT_PORT}"
 
 # Ensure project root is importable so tools can auto-start the server.
