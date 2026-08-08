@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="360" viewBox="0 0 1000 360" font-family="'Segoe UI','Microsoft YaHei',sans-serif">
+  <defs>
+    <marker id="arr-pipe" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#1F883D"/>
+    </marker>
+    <style>
+      .title{font-size:22px;font-weight:700;fill:#1F2328}
+      .box{fill:#F6F8FA;stroke:#D0D7DE;stroke-width:1.5}
+      .boxg{fill:#EAF4EC;stroke:#1F883D;stroke-width:1.5}
+      .num{font-size:18px;font-weight:700;fill:#1F883D}
+      .lbl{font-size:13px;font-weight:700;fill:#1F2328}
+      .sub{font-size:11px;fill:#57606A}
+      .local{font-size:11px;font-weight:700;fill:#1F883D}
+      .bantxt{font-size:13px;font-weight:700;fill:#FFFFFF}
+      .bansub{font-size:12px;fill:#C9D1D9}
+    </style>
+  </defs>
+  <rect width="1000" height="360" fill="#FFFFFF"/>
+
+  <text x="40" y="42" class="title">图 2　文档分析流水线（全链路在 localhost 执行，数据不出机）</text>
+  <line x1="40" y1="58" x2="960" y2="58" stroke="#D0D7DE"/>
+
+  <g transform="translate(40,95)">
+    <!-- stages -->
+    <g>
+      <rect x="0" y="0" width="95" height="90" rx="8" class="boxg"/>
+      <text x="12" y="24" class="num">1</text><text x="32" y="24" class="lbl">上传</text>
+      <text x="10" y="48" class="sub">PDF / DOCX /</text>
+      <text x="10" y="64" class="sub">TXT / MD</text>
+      <text x="10" y="82" class="local">localhost</text>
+    </g>
+    <g transform="translate(112,0)">
+      <rect x="0" y="0" width="95" height="90" rx="8" class="box"/>
+      <text x="12" y="24" class="num">2</text><text x="32" y="24" class="lbl">解析</text>
+      <text x="10" y="48" class="sub">结构化</text>
+      <text x="10" y="64" class="sub">OCR 可选</text>
+      <text x="10" y="82" class="local">localhost</text>
+    </g>
+    <g transform="translate(224,0)">
+      <rect x="0" y="0" width="95" height="90" rx="8" class="box"/>
+      <text x="12" y="24" class="num">3</text><text x="32" y="24" class="lbl">切片</text>
+      <text x="10" y="48" class="sub">按章节/长度</text>
+      <text x="10" y="64" class="sub">智能分块</text>
+      <text x="10" y="82" class="local">localhost</text>
+    </g>
+    <g transform="translate(336,0)">
+      <rect x="0" y="0" width="95" height="90" rx="8" class="box"/>
+      <text x="12" y="24" class="num">4</text><text x="32" y="24" class="lbl">嵌入</text>
+      <text x="10" y="48" class="sub">Embedding</text>
+      <text x="10" y="64" class="sub">本地/降级</text>
+      <text x="10" y="82" class="local">localhost</text>
+    </g>
+    <g transform="translate(448,0)">
+      <rect x="0" y="0" width="95" height="90" rx="8" class="box"/>
+      <text x="12" y="24" class="num">5</text><text x="32" y="24" class="lbl">检索</text>
+      <text x="10" y="48" class="sub">FAISS</text>
+      <text x="10" y="64" class="sub">Top-K 召回</text>
+      <text x="10" y="82" class="local">localhost</text>
+    </g>
+    <g transform="translate(560,0)">
+      <rect x="0" y="0" width="95" height="90" rx="8" class="box"/>
+      <text x="12" y="24" class="num">6</text><text x="32" y="24" class="lbl">规则</text>
+      <text x="10" y="48" class="sub">合同/招标/</text>
+      <text x="10" y="64" class="sub">技术规则库</text>
+      <text x="10" y="82" class="local">localhost</text>
+    </g>
+    <g transform="translate(672,0)">
+      <rect x="0" y="0" width="95" height="90" rx="8" class="box"/>
+      <text x="12" y="24" class="num">7</text><text x="32" y="24" class="lbl">LLM</text>
+      <text x="10" y="48" class="sub">OpenVINO</text>
+      <text x="10" y="64" class="sub">可选增强</text>
+      <text x="10" y="82" class="local">localhost</text>
+    </g>
+    <g transform="translate(784,0)">
+      <rect x="0" y="0" width="95" height="90" rx="8" class="boxg"/>
+      <text x="12" y="24" class="num">8</text><text x="32" y="24" class="lbl">报告</text>
+      <text x="10" y="48" class="sub">MD / HTML</text>
+      <text x="10" y="64" class="sub">/ JSON</text>
+      <text x="10" y="82" class="local">localhost</text>
+    </g>
+
+    <!-- arrows -->
+    <g stroke="#1F883D" stroke-width="2.5" marker-end="url(#arr-pipe)">
+      <line x1="96" y1="45" x2="110" y2="45"/>
+      <line x1="208" y1="45" x2="222" y2="45"/>
+      <line x1="320" y1="45" x2="334" y2="45"/>
+      <line x1="432" y1="45" x2="446" y2="45"/>
+      <line x1="544" y1="45" x2="558" y2="45"/>
+      <line x1="656" y1="45" x2="670" y2="45"/>
+      <line x1="768" y1="45" x2="782" y2="45"/>
+    </g>
+  </g>
+
+  <rect x="40" y="240" width="920" height="70" rx="10" fill="#1F2328"/>
+  <text x="64" y="270" class="bantxt">Agent 调用路径</text>
+  <text x="64" y="294" class="bansub">WorkBuddy / Qoder → tools/analyze_document.py → POST 127.0.0.1:8765/api/analyze → 返回 document_analysis JSON</text>
+</svg>

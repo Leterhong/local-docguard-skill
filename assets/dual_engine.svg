@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="420" viewBox="0 0 800 420" font-family="'Segoe UI','Microsoft YaHei',sans-serif">
+  <defs>
+    <marker id="arr-de" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#1F883D"/>
+    </marker>
+    <style>
+      .title{font-size:22px;font-weight:700;fill:#1F2328}
+      .box{fill:#F6F8FA;stroke:#D0D7DE;stroke-width:1.5}
+      .boxg{fill:#EAF4EC;stroke:#1F883D;stroke-width:1.5}
+      .boxb{fill:#FFF8E6;stroke:#D4A72C;stroke-width:1.5}
+      .lbl{font-size:14px;font-weight:700;fill:#1F2328}
+      .sub{font-size:12px;fill:#57606A}
+      .hl{font-size:13px;font-weight:700;fill:#1F883D}
+      .note{font-size:12px;fill:#57606A}
+    </style>
+  </defs>
+  <rect width="800" height="420" fill="#FFFFFF"/>
+
+  <text x="40" y="42" class="title">图 3　双引擎设计：规则引擎兜底 + 本地 LLM 增强</text>
+  <line x1="40" y1="58" x2="760" y2="58" stroke="#D0D7DE"/>
+
+  <!-- Input document -->
+  <rect x="40" y="160" width="130" height="80" rx="10" class="boxb"/>
+  <text x="65" y="190" class="lbl">输入文档</text>
+  <text x="55" y="212" class="sub">合同 / 招标 /</text>
+  <text x="55" y="230" class="sub">技术方案</text>
+
+  <!-- Rule engine -->
+  <rect x="230" y="110" width="180" height="90" rx="10" class="boxg"/>
+  <text x="250" y="140" class="hl">规则引擎</text>
+  <text x="250" y="165" class="sub">11+ 合同 / 招标 /</text>
+  <text x="250" y="183" class="sub">技术规则</text>
+  <text x="250" y="205" class="sub" font-weight="700">确定性 · 可离线 · 可复核</text>
+
+  <!-- Local LLM -->
+  <rect x="230" y="230" width="180" height="90" rx="10" class="box"/>
+  <text x="250" y="260" class="lbl">本地 LLM</text>
+  <text x="250" y="285" class="sub">Qwen2.5-7B-int4-ov</text>
+  <text x="250" y="303" class="sub">OpenVINO CPU/GPU/NPU</text>
+  <text x="250" y="325" class="hl">摘要 · 解释 · 建议增强</text>
+
+  <!-- Report -->
+  <rect x="510" y="160" width="150" height="80" rx="10" class="boxg"/>
+  <text x="530" y="190" class="hl">结构化报告</text>
+  <text x="530" y="212" class="sub">风险等级 / 证据 /</text>
+  <text x="530" y="230" class="sub">位置 / 建议</text>
+
+  <!-- Arrows -->
+  <g stroke="#1F883D" stroke-width="2.5" marker-end="url(#arr-de)">
+    <line x1="170" y1="180" x2="228" y2="145"/>
+    <line x1="170" y1="220" x2="228" y2="265"/>
+    <line x1="410" y1="155" x2="508" y2="185"/>
+    <line x1="410" y1="275" x2="508" y2="215"/>
+  </g>
+
+  <!-- Notes -->
+  <text x="40" y="360" class="note">• 规则引擎不依赖任何大模型，LLM 缺失时仍能独立产出完整审查报告。</text>
+  <text x="40" y="382" class="note">• 本地 LLM 在线时，对风险解释、摘要、建议进行增强，结论仍带规则证据可复核。</text>
+  <text x="40" y="404" class="note">• 云端模式仅在显式关闭 local_only 后启用，且原始文件字节永不出机。</text>
+</svg>

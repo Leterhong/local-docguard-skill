@@ -1,0 +1,27 @@
+{
+    "venv_name": "docguard",
+    "python_version": "3.11",
+    "mem_need_gb": 8,
+    "server_alive_timeout": 300,
+    "models": [
+        {
+            "model_id": "OpenVINO/<your-local-llm>-int4-ov",
+            "dir_name": "<your-local-llm>-int4-ov",
+            "description": "示例占位：任意 <=35B 的 OpenVINO INT4 IR 模型均可（如 Qwen2.5-7B / Qwen3-8B / GLM-4-9B）。Skill 不会自动下载，请自行准备或用 scripts/convert_model.py 从 HuggingFace 转换。",
+            "required_files": [
+                "openvino_model.xml",
+                "openvino_model.bin",
+                "tokenizer.xml"
+            ]
+        },
+        {
+            "model_id": "OpenVINO/<your-embedding>",
+            "dir_name": "<your-embedding>",
+            "description": "示例占位：本地 embedding 模型（如 BAAI/bge-small-zh-v1.5 / all-MiniLM-L6-v2）。可替换，Skill 不自动下载。",
+            "required_files": [
+                "openvino_model.xml",
+                "openvino_model.bin"
+            ]
+        }
+    ]
+}

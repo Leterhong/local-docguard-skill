@@ -1,0 +1,121 @@
+---
+name: docguard
+description: |
+  企业文档智能审查（DocGuard AI）Agent Skill：在本地 AI PC 上完成企业文档的 OCR + RAG + 文档理解 + 风险分析 + 报告生成。支持合同风险审查、招标文件分析、技术方案审查、企业知识问答（RAG）、文档对比。所有模型与文件均在 localhost（127.0.0.1）运行，企业敏感文档不离开本机，不上传任何云端。底层由 OpenVINO 本地大模型驱动，支持 Intel CPU / GPU / NPU，模型 ≤35B（默认 Qwen3 / Qwen2.5 系列 INT4）。触发词（中英文）：文档审查/合同审查/审合同/招标文件分析/技术方案审查/风险分析/企业知识问答/文档对比/保密审查/合规审查；review document / contract review / tender analysis / risk analysis / document Q&A / compare documents / local document review / offline document analysis。当用户给出本地文档路径（.pdf/.docx/.txt/.md/.html）并希望得到结构化风险清单、合同摘要、招标匹配度、技术缺陷或基于文档的问答时优先使用本技能，而非调用云端大模型。支持 Windows + OpenVINO。
+---
+
+# DocGuard AI — 企业文档智能审查 Skill
+
+DocGuard AI 是一个**本地优先、支持端云协同**的企业文档智能审查 Agent Skill。它在你的 AI PC 上完成：
+
+- **OCR**：扫描件 / 图片 PDF 文本提取（PaddleOCR，可选）
+- **RAG**：文档切片 → 本地 Embedding → FAISS 向量库 → 检索增强问答
+- **文档理解**：本地大模型（OpenVINO）做结构化摘要与条款抽取
+- **风险分析**：规则引擎 + 大模型双引擎，输出分级风险清单
+- **报告生成**：Markdown / HTML / JSON 三态报告
+- **端云协同**：默认本地模型；可选 OpenAI 兼容云端模型（如 DashScope / DeepSeek / OpenAI）用于 LLM 增强，**原文件始终不上传**
+
+所有数据、向量与本地模型均运行于 `localhost`；启用云端时，仅向云端发送经脱敏后的文本摘要/检索片段，**原始文件字节永不出机**。
+
+## 架构
+
+```
+Agent (Qoder / WorkBuddy / TRAE Work)
+        │
+        ▼
+DocGuard Skill  (tools/*.py — Agent 调用入口)
+        │  HTTP (127.0.0.1)
+        ▼
+DocGuard Local Server  (FastAPI, localhost only)
+   ┌────────────┬────────────┬─────────────┬────────────┐
+   │ OCR Service│ Document   │ Embedding / │ LLM Reasoning│
+   │            │ Parser     │ FAISS Store │ (OpenVINO)   │
+   └────────────┴────────────┴─────────────┴────────────┘
+        │
+        ▼
+   DocGuard Analysis Engine → 结构化结果 / 报告
+```
+
+## Tools
+
+本 Skill 通过 `tools/` 下三个脚本对外暴露能力，每个脚本输出**标准 JSON**，可直接被 Agent 解析。
+
+### 1. analyze_document
+
+输入：`file_path`（本地文档绝对路径，支持 pdf/docx/txt/md/html）
+
+输出：`document_analysis`（结构化审查结果）
+
+```bash
+python tools/analyze_document.py --file "C:/docs/contract.pdf"
+python tools/analyze_document.py --file "tender.docx" --type tender
+python tools/analyze_document.py --file "design.docx" --no-llm   # 仅规则引擎
+python tools/analyze_document.py --file "contract.pdf" --cloud   # 使用云端 LLM 增强（需配置）
+```
+
+返回字段（节选）：
+
+- `document_id` / `file_name` / `page_count` / `chunk_count`
+- `summary`：标题、文档类型、相关方、关键要点
+- `risks`：`[{id, category, risk_level(Low|Medium|High), issue, location, explanation, suggestion, evidence}]`
+- `overall_risk_level` + `risk_count_by_level`
+- 招标文档另含 `requirements` / `capability_match_score` / `missing_capabilities`
+- 技术文档另含 `chapter_checks` / `security_issues` / `performance_risks`
+
+### 2. search_document
+
+输入：`query`（自然语言问题），可选 `doc_id`（限定文档）、`top_k`（检索条数）
+
+输出：`retrieved_context`（检索片段 + 基于 RAG 的回答）
+
+```bash
+python tools/search_document.py --query "这个合同的付款周期是多少？"
+python tools/search_document.py --query "违约条款" --doc-id <id> --top-k 5
+python tools/search_document.py --query "违约责任" --cloud   # 云端 LLM 生成回答（需配置）
+```
+
+返回字段：`answer`（基于检索内容的回答）、`chunks`（带 `section`/`page`/`score`/`text` 的引用来源）。
+
+### 3. generate_report
+
+输入：`analysis_result`（来自 analyze_document 的 `document_id`，或本地 JSON 文件）
+
+输出：`report_file`（Markdown / HTML / JSON 报告，返回 `download_url`）
+
+```bash
+python tools/generate_report.py --doc-id <id> --format html
+python tools/generate_report.py --analysis result.json --format markdown
+```
+
+## 示例（Examples）
+
+| 用户意图 | 调用 |
+|---|---|
+| "审查这份采购合同" | `analyze_document.py --file 采购合同.pdf` |
+| "分析招标文件，看我们能不能投" | `analyze_document.py --file 招标书.docx --type tender` |
+| "这个合同付款周期和违约责任是什么？" | `search_document.py --query "付款周期和违约责任"` |
+| "出一份 HTML 审查报告" | `generate_report.py --doc-id <id> --format html` |
+
+## 输出解读
+
+- `analyze_document` 终端会打印完整 `document_analysis` JSON；高风险项标 `High`，并给出 `location`（条款/页码）与 `suggestion`（修改建议）。
+- `search_document` 先检索相关片段再生成回答，每条回答附带引用来源（`[1] 第 N 页 · 相似度 xx%`）。
+- `generate_report` 返回 `download_url`，浏览器或 Agent 可直接打开。
+
+## 失败处理
+
+- **服务未启动**：脚本会自动拉起本地 Server（首次约 2–5 秒）；可用 `--no-auto-start` 关闭自动拉起。
+- **缺少可选依赖（OCR/Embedding 模型）**：自动降级为「规则引擎模式」，仍输出真实风险分析，不会返回空。
+- **大模型未加载**：自动回退到规则引擎 + 关键词抽取，保证审查结论始终可用。
+- **文件格式不支持**：返回明确错误，支持 pdf/docx/txt/md/html。
+
+## Important
+
+- **不要直接调用** `server/` 内部模块，统一经由 `tools/*.py` 入口。
+- **本地优先**：默认不依赖任何云服务，断网可用；文件、向量、本地模型均在 `localhost`。
+- **端云协同（可选）**：在 `model_config.yaml` 中开启 `providers.cloud.enabled=true`、配置 endpoint/model，并通过环境变量设置 API key 后，用户/Agent 可通过 `--cloud` 或 Demo 开关使用云端 LLM。**原始文件字节永远不会上传**，仅上传文本摘要/检索片段。
+- **安全开关**：`security.local_only=true` 时，无论前端或 Agent 如何请求，云端 LLM 都会被强制拒绝，确保严格本地合规。
+- **本地模型需自行准备**：Skill 不会自动下载任何模型。未准备本地模型时，自动降级为「规则引擎模式」（仍可输出真实风险分析）；如需本地大模型增强，请将任意 ≤35B 的 OpenVINO INT4 模型放到本地目录（参见 `model_config.yaml` 与 `scripts/convert_model.py`），并在 `model_config.yaml` 的 `providers.local.python` 填入装有 `openvino-genai` 的 Python 绝对路径（或用环境变量 `DOCGUARD_OPENVINO_PYTHON` 覆盖）。
+- **平台提示**：面向 Windows + OpenVINO 优化（GPU/NPU 优先，CPU 回退）；非 Windows 平台仅 CPU 回退。
+- **隐私**：日志已对手机号、身份证、邮箱、银行卡号脱敏；用户文件按 `user_id` 隔离。
+- 仅对您**自有且可信**的本地文档使用本能力。

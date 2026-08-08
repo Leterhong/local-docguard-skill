@@ -1,0 +1,122 @@
+# =====================================================================
+# DocGuard AI - Model Configuration
+# ---------------------------------------------------------------------
+# Default: all models run locally on localhost; no document leaves the machine.
+# Optional "cloud" provider lets you offload LLM reasoning to an OpenAI-compatible
+# endpoint (e.g. DashScope / DeepSeek / OpenAI) when local hardware is unavailable.
+# Cloud mode is DISABLED by default and requires explicit admin enablement.
+# Switch device between CPU / GPU / NPU based on your AI PC hardware.
+# ---------------------------------------------------------------------
+# 重要：Skill 不会自动下载任何模型。所有本地模型需用户自行准备（放到本地目录），
+# 或用 scripts/convert_model.py 从 HuggingFace 转换为 OpenVINO IR；未准备模型时自动降级为规则引擎。
+# 下列 name 仅为「示例值」，path 为相对本 skill 根目录的路径，请按你实际放置的模型替换。
+# =====================================================================
+
+model:
+  # 示例模型：任意 ≤35B 的 OpenVINO INT4 IR 模型均可替换（如 Qwen3-8B、GLM-4-9B、MiniCPM-2.6 等）。
+  # 重要：Skill 不会自动下载任何模型。请自行准备模型文件，或用 scripts/convert_model.py 从 HuggingFace 转换。
+  name: "Qwen2.5-7B-Instruct-int4-ov"
+  path: ".openvino/models/Qwen2.5-7B-Instruct-int4-ov"
+  runtime: "openvino"          # openvino | transformers
+  device: "CPU"                # CPU | GPU | NPU | AUTO  (set GPU/NPU on a real AI PC)
+  max_new_tokens: 1024
+  temperature: 0.1             # low temperature for deterministic legal review
+  top_p: 0.9
+  context_window: 32768
+
+  # Fallback used when the primary model is unavailable.
+  # The engine still performs REAL rule-based document analysis even
+  # when no LLM is present; the LLM only enriches summarization.
+  fallback:
+    name: "Qwen2.5-7B-Instruct-int4-ov"
+    path: ".openvino/models/Qwen2.5-7B-Instruct-int4-ov"
+    runtime: "openvino"
+    device: "CPU"
+
+# ----------------------------------------------------------------------
+# Providers: local (default) vs cloud (optional, disabled by default).
+# The user can switch provider via the Demo UI or the Agent tool flag
+# `use_cloud=true`.  Cloud mode is only allowed when security.local_only=false.
+# ----------------------------------------------------------------------
+providers:
+  local:
+    enabled: true
+    display_name: "本地 OpenVINO"
+    description: "本地大模型，文档不上云"
+    # 装有 openvino-genai 的 Python 解释器【绝对路径】——请按你机器修改！
+    # 留空或路径无效时，OpenVINO 子进程后端会被跳过，Skill 自动降级为规则引擎模式（仍可正常工作）。
+    # 相对路径示例（需与 skill 根目录对应、且确实存在时可用）：.openvino/venv/dataanalysis/Scripts/python.exe
+    # 也可用环境变量覆盖：设置 DOCGUARD_OPENVINO_PYTHON 指向该解释器（见 README），无需改动本文件。
+    python: ".openvino/venv/dataanalysis/Scripts/python.exe"
+  cloud:
+    enabled: false              # set true to allow cloud LLM
+    display_name: "云端大模型"
+    description: "OpenAI 兼容接口，按需调用"
+    endpoint: "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    model: "qwen3-8b"           # e.g. qwen3-8b, deepseek-chat, gpt-4o
+    # API key is read from the environment variable below.  Never commit it.
+    api_key_env: "DOCGUARD_CLOUD_API_KEY"
+    timeout: 60
+    max_tokens: 2048
+    temperature: 0.1
+    top_p: 0.9
+    # What data may leave the machine when cloud is active:
+    #   text_summary  -> sends only a 6000-char text sample + rule findings
+    #   never_upload  -> original file bytes are NEVER uploaded
+    data_scope: "text_summary"
+
+embedding:
+  # 示例 embedding 模型：BGE-small-zh 适合中文企业文档；英文可选 all-MiniLM-L6-v2。
+  # 任意本地 sentence-transformers / OpenVINO embedding 模型均可替换。Skill 不自动下载。
+  name: "BAAI/bge-small-zh-v1.5"
+  path: ".openvino/models/bge-small-zh-v1.5"
+  device: "CPU"
+  dimension: 512
+  max_length: 512
+  fallback_name: "sentence-transformers/all-MiniLM-L6-v2"
+  fallback_dimension: 384
+
+ocr:
+  enabled: true
+  # PaddleOCR (recommended for Chinese) or openvino OCR models.
+  engine: "paddleocr"          # paddleocr | openvino | none
+  lang: "ch"
+  device: "CPU"
+  use_angle_cls: true
+
+vectordb:
+  type: "faiss"
+  path: "data/vectordb"
+  index_type: "Flat"           # Flat for exact search on local docs
+  metric: "cosine"
+
+server:
+  host: "127.0.0.1"
+  port: 8765
+  workers: 1
+  cors_origins:
+    - "http://127.0.0.1:8765"
+    - "http://localhost:8765"
+    - "null"
+
+security:
+  # Files never leave this machine. When true, cloud providers are blocked
+  # regardless of user/UI selection, ensuring a strict local-only posture.
+  local_only: true
+  # Redact these patterns from logs.
+  log_redactions:
+    - pattern: '1[3-9]\d{9}'        # CN mobile phone
+      replacement: '[PHONE_REDACTED]'
+    - pattern: '\d{17}[\dXx]'       # CN ID card
+      replacement: '[ID_REDACTED]'
+    - pattern: '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}'
+      replacement: '[EMAIL_REDACTED]'
+    - pattern: '\b\d{16,19}\b'      # bank card
+      replacement: '[CARD_REDACTED]'
+  # Per-user workspace isolation (sub-directory named by session/user id).
+  isolate_users: true
+
+processing:
+  chunk_size: 500              # characters per chunk
+  chunk_overlap: 80
+  top_k: 6

@@ -1,0 +1,23 @@
+# ===== 非 skill 包内容（征文素材、本地日志、模型、运行产物） =====
+article/
+data/
+.openvino/
+
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# ===== 日志 =====
+*.log
+
+# ===== 前端依赖 =====
+node_modules/
+
+# ===== 系统与凭据 =====
+.DS_Store
+Thumbs.db
+.env
