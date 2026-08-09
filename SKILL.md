@@ -160,8 +160,8 @@ python tools/generate_report.py --analysis result.json --format markdown
 - **不支持平台**：宿主入口为 PowerShell `scripts/run.ps1`，**仅支持 Windows**（Linux / macOS 需自行提供等价启动脚本）。内存建议 ≥ `info.json` 中 `mem_need_gb`（默认 8GB）。
 - **纯本地锁死（赛事硬要求）**：默认 `security.local_only=true`，云端模型仅在用户于 `model_config.yaml` 显式开启且自备 API key 时方可启用，且**原始文档字节永不出机**（仅发送脱敏文本片段）。
 - **模型用户自备、不自动下载**：本 Skill 不会自动下载任何模型权重。首次运行请按 `info.json` 准备本地 OpenVINO 模型（任意 ≤35B INT4，如 Qwen2.5-7B）与可选 embedding 模型；无模型时自动降级为「规则引擎 + 哈希嵌入」，审查结论仍真实可用。
-- **端云协同（可选）**：在 `model_config.yaml` 中开启 `providers.cloud.enabled=true`、配置 endpoint/model，并通过环境变量设置 API key 后，用户/Agent 可通过 `--cloud` 或 Demo 开关使用云端 LLM。**原始文件字节永远不会上传**，仅上传文本摘要/检索片段。
-- **安全开关**：`security.local_only=true` 时，无论前端或 Agent 如何请求，云端 LLM 都会被强制拒绝，确保严格本地合规。
+- **端云协同（可选）**：在 `model_config.yaml` 中开启 `providers.cloud.enabled=true`、配置 endpoint/model，并通过环境变量设置 API key 后，用户可通过 `--cloud` 参数（由 Agent 在调用 `tools/*.py` 时传入）启用云端 LLM。**原始文件字节永远不会上传**，仅上传文本摘要/检索片段。
+- **安全开关**：`security.local_only=true` 时，无论 Agent 或任何调用方如何请求，云端 LLM 都会被强制拒绝，确保严格本地合规。
 - **本地模型需自行准备**：Skill 不会自动下载任何模型。未准备本地模型时，自动降级为「规则引擎模式」（仍可输出真实风险分析）；如需本地大模型增强，请将任意 ≤35B 的 OpenVINO INT4 模型放到本地目录（参见 `model_config.yaml` 与 `scripts/convert_model.py`），并在 `model_config.yaml` 的 `providers.local.python` 填入装有 `openvino-genai` 的 Python 绝对路径（或用环境变量 `DOCGUARD_OPENVINO_PYTHON` 覆盖）。
 - **平台提示**：面向 Windows + OpenVINO 优化（GPU/NPU 优先，CPU 回退）；非 Windows 平台仅 CPU 回退。
 - **隐私**：日志已对手机号、身份证、邮箱、银行卡号脱敏；用户文件按 `user_id` 隔离。
