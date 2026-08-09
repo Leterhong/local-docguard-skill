@@ -150,12 +150,16 @@ python tools/generate_report.py --analysis result.json --format markdown
 - **缺少可选依赖（OCR/Embedding 模型）**：自动降级为「规则引擎模式」，仍输出真实风险分析，不会返回空。
 - **大模型未加载**：自动回退到规则引擎 + 关键词抽取，保证审查结论始终可用。
 - **文件格式不支持**：返回明确错误，支持 pdf/docx/txt/md/html。
+- **首次未准备模型**：不会触发下载；若需 LLM 增强请先按 `info.json` 放置本地 OpenVINO 模型，否则自动走规则引擎降级。
 
 ## Important
 
 - **宿主调用入口**：WorkBuddy / Qoder / TRAE 等宿主通过 `scripts/run.ps1` 统一启动与调用本 Skill（详见 `info.json`）；Agent 也可直接执行 `tools/*.py` 三个脚本。
 - **不要直接调用** `server/` 内部模块，统一经由 `tools/*.py` 入口。
 - **本地优先**：默认不依赖任何云服务，断网可用；文件、向量、本地模型均在 `localhost`。
+- **不支持平台**：宿主入口为 PowerShell `scripts/run.ps1`，**仅支持 Windows**（Linux / macOS 需自行提供等价启动脚本）。内存建议 ≥ `info.json` 中 `mem_need_gb`（默认 8GB）。
+- **纯本地锁死（赛事硬要求）**：默认 `security.local_only=true`，云端模型仅在用户于 `model_config.yaml` 显式开启且自备 API key 时方可启用，且**原始文档字节永不出机**（仅发送脱敏文本片段）。
+- **模型用户自备、不自动下载**：本 Skill 不会自动下载任何模型权重。首次运行请按 `info.json` 准备本地 OpenVINO 模型（任意 ≤35B INT4，如 Qwen2.5-7B）与可选 embedding 模型；无模型时自动降级为「规则引擎 + 哈希嵌入」，审查结论仍真实可用。
 - **端云协同（可选）**：在 `model_config.yaml` 中开启 `providers.cloud.enabled=true`、配置 endpoint/model，并通过环境变量设置 API key 后，用户/Agent 可通过 `--cloud` 或 Demo 开关使用云端 LLM。**原始文件字节永远不会上传**，仅上传文本摘要/检索片段。
 - **安全开关**：`security.local_only=true` 时，无论前端或 Agent 如何请求，云端 LLM 都会被强制拒绝，确保严格本地合规。
 - **本地模型需自行准备**：Skill 不会自动下载任何模型。未准备本地模型时，自动降级为「规则引擎模式」（仍可输出真实风险分析）；如需本地大模型增强，请将任意 ≤35B 的 OpenVINO INT4 模型放到本地目录（参见 `model_config.yaml` 与 `scripts/convert_model.py`），并在 `model_config.yaml` 的 `providers.local.python` 填入装有 `openvino-genai` 的 Python 绝对路径（或用环境变量 `DOCGUARD_OPENVINO_PYTHON` 覆盖）。
