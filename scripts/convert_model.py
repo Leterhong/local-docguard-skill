@@ -22,6 +22,13 @@ Notes:
     * --int4 uses NNCF weight-compression (recommended for <=35B on AI PC)
 """
 from __future__ import annotations
+
+import sys
+
+# Windows-safe UTF-8 output (mandatory per local-ai-skill-authoring best practices).
+for _s in (sys.stdout, sys.stderr):
+    if hasattr(_s, "reconfigure"):
+        _s.reconfigure(encoding="utf-8")
 import argparse
 import sys
 from pathlib import Path

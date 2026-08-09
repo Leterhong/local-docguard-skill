@@ -16,13 +16,17 @@ leaves the machine. It exposes:
 """
 from __future__ import annotations
 
+import sys
 import threading
 from pathlib import Path
 
+# Windows-safe UTF-8 output (mandatory per local-ai-skill-authoring best practices).
+for _s in (sys.stdout, sys.stderr):
+    if hasattr(_s, "reconfigure"):
+        _s.reconfigure(encoding="utf-8")
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
 
 from server import __version__
 from server.api import analyze, compare, health, report, search
@@ -62,22 +66,18 @@ app.include_router(compare.router)
 
 
 # ----------------------------------------------------------------------
-# Demo UI (static)
+# Root endpoint — API info.
+# The Skill is driven by the Agent via tools/ (HTTP); no bundled web UI.
 # ----------------------------------------------------------------------
-WEB_DIR = Path(__file__).resolve().parent.parent / "web"
-if WEB_DIR.exists():
-    app.mount("/static", StaticFiles(directory=str(WEB_DIR)), name="static")
-
-    @app.get("/", include_in_schema=False)
-    async def index():
-        index_file = WEB_DIR / "index.html"
-        if index_file.exists():
-            return FileResponse(str(index_file))
-        return {"message": "DocGuard AI API running", "docs": "/docs"}
-else:
-    @app.get("/", include_in_schema=False)
-    async def index():
-        return {"message": "DocGuard AI API running", "docs": "/docs"}
+@app.get("/", include_in_schema=False)
+async def index():
+    return {
+        "skill": "DocGuard AI",
+        "version": __version__,
+        "message": "本地企业文档智能审查 Agent Skill",
+        "docs": "/docs",
+        "local_only": settings.is_local_only(),
+    }
 
 
 # ----------------------------------------------------------------------

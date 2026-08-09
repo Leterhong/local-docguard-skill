@@ -13,7 +13,7 @@ DocGuard AI 是一个面向生产力级 AI Agent（Qoder / WorkBuddy / TRAE Work
 ## 目录速览
 
 - **运行必需**：`SKILL.md` · `info.json` · `meta.json` · `model_config.yaml` · `requirements.txt`
-- **核心代码**：`scripts/`（宿主入口 `run.ps1`、模型转换、基准）· `tools/`（Agent 调用入口）· `server/`（FastAPI 本地服务）· `web/`（Demo 前端）
+- **核心代码**：`scripts/`（宿主入口 `run.ps1`、模型转换、基准、契约入口 `client.py`/`server.py`）· `tools/`（Agent 调用入口）· `server/`（FastAPI 本地服务）
 - **样例与示例**：`examples/`（合同/招标/技术方案样例 + `demo_client.py` 最小客户端示例）
 - **文档配图**：`assets/`（SVG 架构图 + 真实运行截图）
 - **测试**：`tests/`
@@ -86,7 +86,6 @@ Agent 调用路径：`tools/analyze_document.py` → `POST 127.0.0.1:8765/api/an
 | 向量库 | FAISS |
 | OCR | PaddleOCR（可选，自动降级） |
 | 文档解析 | PDF / DOCX / TXT / Markdown / HTML |
-| 前端 | 原生 HTML/CSS/JS 企业级 Demo（Deep Space Black / Enterprise Green） |
 | Agent 规范 | SKILL.md（Tools 定义） |
 
 ---
@@ -115,7 +114,7 @@ python -m server.main
 uvicorn server.main:app --host 127.0.0.1 --port 8765
 ```
 
-启动后访问 **http://127.0.0.1:8765** 打开企业级 Demo 界面。
+本地服务启动后仅对外暴露 JSON API（见第十节 API 一览），由 Agent 通过 `tools/` 直接调用，无需图形界面。
 
 ### 3. 通过 Agent 调用（三个 Tool）
 
@@ -144,19 +143,11 @@ python examples/demo_client.py
 
 ---
 
-## 八、Web 界面截图
+## 八、前端说明
 
-### 8.1 启动后的 Demo 首页
-
-![Web UI 首页](assets/web_ui_empty.png)
-
-> **Web 视角说明**：服务未启动时，右上角显示「服务未连接·请启动后端」和默认地址 `localhost:8765`；左侧为上传区、文档类型选择、智能审查按钮；右侧为企业知识问答（RAG）区。整个界面仅与 localhost 通信。
-
-### 8.2 连接本地模型后的状态
-
-![Web UI 已连接](assets/web_ui_connected.png)
-
-> **Web 视角说明**：服务启动并加载本地模型（示例：Qwen2.5-7B-Instruct-int4-ov）后，右上角显示「模型 <你配置的本地模型> · CPU」和「localhost · 本地运行」；左侧「已索引文档」列出刚上传的合同；「开始智能审查」按钮变为可用。
+DocGuard 是面向 Agent（Qoder / WorkBuddy / TRAE Work）的生产力级 Skill，核心交互通过
+`tools/` 下的三个 Tool（analyze / search / report）完成，**不捆绑任何图形界面**。
+本地服务仅对外暴露 JSON API（见第十节 API 一览），由 Agent 直接调用，确保「纯本地、文档不出机」。
 
 ---
 
@@ -301,7 +292,6 @@ $env:DOCGUARD_CLOUD_API_KEY="sk-xxx"
 ```
 
 3. 使用方式：
-   - **Demo 界面**：点击右上角「本地 / 云端」开关切换。
    - **Agent 工具**：`python tools/analyze_document.py --file examples/contract_sample.txt --cloud`。
    - **API**：`POST /api/analyze` 请求体中设置 `"use_cloud": true`。
 
@@ -357,13 +347,12 @@ docguard-skill/
 │   ├── verify_e2e.py        # 端到端验证（开发者用，非运行必需）
 │   └── verify_pdf.py        # PDF 解析链路验证（开发者用，非运行必需）
 ├── server/                  # FastAPI 本地服务
-│   ├── main.py              # 服务入口（Demo + API）
+│   ├── main.py              # 服务入口（FastAPI，JSON API）
 │   ├── config.py
 │   ├── api/                 # analyze / search / report / compare / health
 │   ├── models/              # Pydantic schemas
 │   └── services/            # ocr / parser / embedding / vector / llm / rules / engine
 ├── tools/                   # Agent 调用入口（analyze/search/report）
-├── web/                     # 企业级 Demo 前端
 ├── assets/                  # README 配图（SVG 架构图 + 真实运行截图）
 ├── examples/                # 样例文档 + 开发者示例
 │   ├── contract_sample.txt  # 合同样例

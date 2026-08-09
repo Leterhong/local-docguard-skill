@@ -19,6 +19,11 @@ import argparse
 import sys
 from pathlib import Path
 
+# Windows-safe UTF-8 output (mandatory per local-ai-skill-authoring best practices).
+for _s in (sys.stdout, sys.stderr):
+    if hasattr(_s, "reconfigure"):
+        _s.reconfigure(encoding="utf-8")
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _client import ensure_running, post_json, print_json  # noqa: E402
 

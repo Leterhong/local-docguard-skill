@@ -35,8 +35,10 @@ model:
 
 # ----------------------------------------------------------------------
 # Providers: local (default) vs cloud (optional, disabled by default).
-# The user can switch provider via the Demo UI or the Agent tool flag
-# `use_cloud=true`.  Cloud mode is only allowed when security.local_only=false.
+# 切换 provider 仅可通过 Agent 工具参数 `use_cloud=true`（演示前端 web/ 已移除）。
+# 注意：以下 cloud 段仅为「扩展样例」，并非默认能力。赛事硬性要求纯本地，
+# 该 cloud 段默认被下方 security.local_only=true 锁死（即便 cloud.enabled=true，
+# 只要 local_only=true，云端提供方即被屏蔽），文档与原始文件永不离开本机。
 # ----------------------------------------------------------------------
 providers:
   local:

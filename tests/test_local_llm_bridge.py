@@ -10,8 +10,14 @@
 - MODEL：同 test_local_llm_openvino.py 的解析逻辑（环境变量 / model_config.yaml / 相对默认）。
 """
 import os
+import sys
 import time
 from pathlib import Path
+
+# Windows-safe UTF-8 output (mandatory per local-ai-skill-authoring best practices).
+for _s in (sys.stdout, sys.stderr):
+    if hasattr(_s, "reconfigure"):
+        _s.reconfigure(encoding="utf-8")
 
 from server.services.local_llm_bridge import LocalLLMBridge
 

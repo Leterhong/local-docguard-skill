@@ -4,6 +4,11 @@
 import sys, os, argparse
 from markdown import Markdown
 
+# Windows-safe UTF-8 output (mandatory per local-ai-skill-authoring best practices).
+for _s in (sys.stdout, sys.stderr):
+    if hasattr(_s, "reconfigure"):
+        _s.reconfigure(encoding="utf-8")
+
 CSS = """
 :root{--fg:#1F2328;--muted:#57606A;--line:#D0D7DE;--green:#1F883D;--blue:#0969DA;}
 *{box-sizing:border-box}

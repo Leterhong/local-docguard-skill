@@ -20,6 +20,13 @@ Reports:
 Requires: openvino, optimum-intel, transformers, torch
 """
 from __future__ import annotations
+
+import sys
+
+# Windows-safe UTF-8 output (mandatory per local-ai-skill-authoring best practices).
+for _s in (sys.stdout, sys.stderr):
+    if hasattr(_s, "reconfigure"):
+        _s.reconfigure(encoding="utf-8")
 import argparse
 import time
 from pathlib import Path

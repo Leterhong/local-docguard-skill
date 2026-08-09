@@ -2,8 +2,9 @@
 # DocGuard AI - Skill 入口 (FIXED NAME: scripts/run.ps1)
 #
 # 宿主应用 (WorkBuddy / Qoder / TRAE Work) 硬编码调用本文件作为唯一入口。
-# 本脚本：选 Python 解释器 -> 确保本地 venv/依赖 -> 路由到 tools/ 客户端
-# （tools/*.py 会自动拉起本地 FastAPI Server，无需手动起服务）。
+# 本脚本：选 Python 解释器 -> 确保本地 venv/依赖 -> 路由到契约入口：
+#   serve   -> scripts/server.py（长命模型服务，FastAPI @127.0.0.1:8765）
+#   其余动作 -> scripts/client.py（短命 CLI，自动拉起并调用本地服务）
 # 全部运行于 localhost，文档与模型均不出机。
 # =====================================================================
 $ErrorActionPreference = 'Stop'
@@ -40,18 +41,8 @@ if (-not (Test-Path $venvPy)) {
     & .venv\Scripts\python.exe -m pip install -r requirements.txt
 }
 
-# 4) 动作路由
+# 4) 动作路由（符合官方流程：run.ps1 固定入口 -> client.py 短命入口；serve -> server.py 长命模型服务）
 switch ($action) {
-    'serve'   { & $py -m server.main @rest }
-    'analyze' { & $py tools/analyze_document.py @rest }
-    'search'  { & $py tools/search_document.py @rest }
-    'report'  { & $py tools/generate_report.py @rest }
-    default {
-        Write-Host "DocGuard AI 用法: run.ps1 <analyze|search|report|serve> [参数]" -ForegroundColor Yellow
-        Write-Host "  审查文档 : run.ps1 analyze --file 合同.pdf [--type contract] [--no-llm]"
-        Write-Host "  知识问答 : run.ps1 search  --query 付款周期 [--doc-id <id>]"
-        Write-Host "  生成报告 : run.ps1 report  --doc-id <id> --format html"
-        Write-Host "  启动服务 : run.ps1 serve"
-        exit 0
-    }
+    'serve'   { & $py scripts/server.py @rest }
+    default   { & $py scripts/client.py $action @rest }
 }

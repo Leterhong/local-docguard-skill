@@ -17,6 +17,11 @@ import json
 import os
 import sys
 
+# Windows-safe UTF-8 output (mandatory per local-ai-skill-authoring best practices).
+for _s in (sys.stdout, sys.stderr):
+    if hasattr(_s, "reconfigure"):
+        _s.reconfigure(encoding="utf-8")
+
 import openvino_genai as ov_genai
 
 

@@ -13,7 +13,13 @@ Qoder / WorkBuddy / TRAE Work 通过 tools/ 目录下的 Tool 脚本调用服务
 """
 
 import os
+import sys
 import requests
+
+# Windows-safe UTF-8 output (mandatory per local-ai-skill-authoring best practices).
+for _s in (sys.stdout, sys.stderr):
+    if hasattr(_s, "reconfigure"):
+        _s.reconfigure(encoding="utf-8")
 
 BASE = "http://127.0.0.1:8765"  # 与 model_config.yaml 中 server.port 保持一致
 

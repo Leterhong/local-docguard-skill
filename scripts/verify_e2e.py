@@ -9,6 +9,11 @@ import sys
 import time
 import requests
 
+# Windows-safe UTF-8 output (mandatory per local-ai-skill-authoring best practices).
+for _s in (sys.stdout, sys.stderr):
+    if hasattr(_s, "reconfigure"):
+        _s.reconfigure(encoding="utf-8")
+
 BASE = "http://127.0.0.1:" + os.environ.get("DOCGUARD_PORT", "8765")
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # 项目根（本文件位于 scripts/）
 

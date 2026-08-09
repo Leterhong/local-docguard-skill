@@ -3,7 +3,7 @@
 # 验证环境：Python 3.13 (亦兼容 3.11 / 3.12)
 #
 # 重要：本项目支持「无模型降级运行」——
-#   未安装 sentence-transformers / openvino / paddleocr 时，
+#   未安装 openvino-genai / sentence-transformers / paddleocr 时，
 #   自动切换为 哈希向量嵌入(FAISS) + 确定性规则引擎，
 #   所有审查/检索/报告功能仍真实可用（见 e2e_verify.py）。
 #   因此「可选模型依赖」不安装也能完整运行核心流程，
@@ -30,12 +30,16 @@ fpdf2==2.8.7           # 实测 5：本地生成中文测试 PDF（代码中 imp
 # sentence-transformers==3.3.1
 # torch==2.5.1
 
-# ---------------- 可选：OpenVINO 本地大模型推理 ----------------
-# 提供本地 LLM 增强摘要与解释；不安装则仅用规则引擎
-# openvino==2024.6.0
-# optimum[openvino]==1.23.3
-# nncf==2.14.0
-# transformers==4.47.1
+# ---------------- OpenVINO 本地推理（正式依赖：库≠权重） ----------------
+# 赛事官方规范硬性要求：requirements.txt 必须声明 OpenVINO 推理引擎（库，非模型权重）。
+# LLM 增强另需 openvino-genai（见下方可选块）；二者未安装时自动降级为
+# 确定性规则引擎，核心审查/检索/报告功能仍真实可用。
+openvino==2024.6.0
+
+# ---------------- 可选：OpenVINO GenAI 本地大模型推理 ----------------
+# 提供本地 LLM 增强摘要与解释（openvino_gen_server 直接 import openvino_genai）。
+# 不安装则仅用规则引擎；与 numpy==2.5.1 的兼容性以实际环境为准，安装失败可跳过。
+# openvino-genai==2024.6.0
 
 # ---------------- 可选：OCR（扫描件 PDF / 图片） ----------------
 # 提供后启用 OCR 文本提取；不安装则跳过扫描件 OCR（规则引擎仍运行）
