@@ -10,6 +10,17 @@ DocGuard AI 是一个面向生产力级 AI Agent（Qoder / WorkBuddy / TRAE Work
 
 ---
 
+## 目录速览
+
+- **运行必需**：`SKILL.md` · `info.json` · `meta.json` · `model_config.yaml` · `requirements.txt`
+- **核心代码**：`scripts/`（宿主入口 `run.ps1`、模型转换、基准）· `tools/`（Agent 调用入口）· `server/`（FastAPI 本地服务）· `web/`（Demo 前端）
+- **样例与示例**：`examples/`（合同/招标/技术方案样例 + `demo_client.py` 最小客户端示例）
+- **文档配图**：`assets/`（SVG 架构图 + 真实运行截图）
+- **测试**：`tests/`
+- 开发验证脚本（`verify_e2e.py` / `verify_pdf.py`）统一置于 `scripts/` 下，不在根目录平铺。
+
+---
+
 ## 一、核心能力
 
 | 功能 | 输入 | 输出 |
@@ -119,14 +130,14 @@ python tools/search_document.py --query "这个合同付款周期是多少？" -
 python tools/generate_report.py --doc-id <id> --format html
 ```
 
-### 4. 通过 client_demo.py 直接调用（开发者示例）
+### 4. 通过 examples/demo_client.py 直接调用（开发者示例）
 
-`client_demo.py` 是一个**最小 HTTP 客户端示例**，用于向开发者展示如何直接用 `requests` 调用 DocGuard 本地服务。
+`examples/demo_client.py` 是一个**最小 HTTP 客户端示例**，用于向开发者展示如何直接用 `requests` 调用 DocGuard 本地服务。
 它不属于生产力级 Agent 的 Tool 入口；真实场景请使用 `tools/` 目录下的脚本。
 
 ```bash
 # 确保服务已启动后运行
-python client_demo.py
+python examples/demo_client.py
 ```
 
 脚本会：上传 `examples/contract_sample.txt` → 调用 `/api/analyze`（`use_llm=true, use_cloud=false`） → 打印文档类型、风险等级、`llm_used` 和风险清单。
@@ -339,11 +350,12 @@ docguard-skill/
 ├── meta.json                # Skill 商店元数据
 ├── model_config.yaml        # 模型与设备配置（不写死）
 ├── requirements.txt
-├── client_demo.py           # 最小 HTTP 客户端示例
-├── scripts/
-│   ├── run.ps1              # Host 固定入口
-│   ├── convert_model.py     # 模型转换
-│   └── benchmark.py         # 推理基准
+├── scripts/                 # 运行与开发工具
+│   ├── run.ps1              # Host 固定入口（部署/调用统一入口）
+│   ├── convert_model.py     # 模型转换（HF → OpenVINO IR）
+│   ├── benchmark.py         # 推理基准
+│   ├── verify_e2e.py        # 端到端验证（开发者用，非运行必需）
+│   └── verify_pdf.py        # PDF 解析链路验证（开发者用，非运行必需）
 ├── server/                  # FastAPI 本地服务
 │   ├── main.py              # 服务入口（Demo + API）
 │   ├── config.py
@@ -353,7 +365,11 @@ docguard-skill/
 ├── tools/                   # Agent 调用入口（analyze/search/report）
 ├── web/                     # 企业级 Demo 前端
 ├── assets/                  # README 配图（SVG 架构图 + 真实运行截图）
-├── examples/                # 样例文档
+├── examples/                # 样例文档 + 开发者示例
+│   ├── contract_sample.txt  # 合同样例
+│   ├── tender_sample.md     # 招标样例
+│   ├── tech_sample.md       # 技术方案样例
+│   └── demo_client.py       # 最小 HTTP 客户端示例
 ├── tests/                   # 测试用例
 └── data/                    # uploads / reports / vectordb（运行时生成）
 ```

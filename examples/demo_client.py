@@ -12,14 +12,16 @@ Qoder / WorkBuddy / TRAE Work 通过 tools/ 目录下的 Tool 脚本调用服务
 服务默认监听 127.0.0.1:8765（可在 model_config.yaml 中修改 server.port）。
 """
 
+import os
 import requests
 
 BASE = "http://127.0.0.1:8765"  # 与 model_config.yaml 中 server.port 保持一致
 
 
 def main():
-    # 1. 上传示例文档
-    with open("examples/contract_sample.txt", "rb") as f:
+    # 1. 上传示例文档（本脚本与样例同处 examples/ 目录）
+    sample = os.path.join(os.path.dirname(os.path.abspath(__file__)), "contract_sample.txt")
+    with open(sample, "rb") as f:
         up = requests.post(f"{BASE}/api/upload", files={"file": f}).json()
     path = up["data"]["file_path"]
 

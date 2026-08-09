@@ -10,7 +10,7 @@ import time
 import requests
 
 BASE = "http://127.0.0.1:" + os.environ.get("DOCGUARD_PORT", "8765")
-ROOT = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # 项目根（本文件位于 scripts/）
 
 
 def wait_health(timeout: int = 45) -> dict:

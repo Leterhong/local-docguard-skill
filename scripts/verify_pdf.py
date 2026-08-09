@@ -8,9 +8,9 @@ import os
 import requests
 from fpdf import FPDF
 
-FONT = "C:/Windows/Fonts/simhei.ttf"
-HERE = os.path.dirname(os.path.abspath(__file__))
-OUT = os.path.join(HERE, "data", "samples", "contract_verify.pdf")
+FONT = "C:/Windows/Fonts/simhei.ttf"  # Windows 系统字体；非 Windows 请改为可用的中文字体路径
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # 项目根（本文件位于 scripts/）
+OUT = os.path.join(ROOT, "data", "samples", "contract_verify.pdf")
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
 
 pdf = FPDF()
