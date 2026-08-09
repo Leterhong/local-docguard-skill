@@ -12,12 +12,12 @@ DocGuard AI 是一个面向生产力级 AI Agent（Qoder / WorkBuddy / TRAE Work
 
 ## 目录速览
 
-- **运行必需**：`SKILL.md` · `info.json` · `meta.json` · `model_config.yaml` · `requirements.txt`
-- **核心代码**：`scripts/`（宿主入口 `run.ps1`、模型转换、基准、契约入口 `client.py`/`server.py`）· `tools/`（Agent 调用入口）· `server/`（FastAPI 本地服务）
-- **样例与示例**：`examples/`（合同/招标/技术方案样例 + `demo_client.py` 最小客户端示例）
-- **文档配图**：`assets/`（SVG 架构图 + 真实运行截图）
-- **测试**：`tests/`
-- 开发验证脚本（`verify_e2e.py` / `verify_pdf.py`）统一置于 `scripts/` 下，不在根目录平铺。
+- **[运行必需](#file-checklist)**：`SKILL.md` · `info.json` · `meta.json` · `model_config.yaml` · `requirements.txt`
+- **[核心代码](#architecture)**：`scripts/`（宿主入口 `run.ps1`、模型转换、基准、契约入口 `client.py`/`server.py`）· `tools/`（Agent 调用入口）· `server/`（FastAPI 本地服务）
+- **[样例与示例](#quickstart)**：`examples/`（合同/招标/技术方案样例 + `demo_client.py` 最小客户端示例）
+- **[文档配图](#screenshots)**：`assets/`（SVG 架构图 + 真实运行截图）
+- **[测试](#tests)**：`tests/`
+- **[开发验证脚本](#project-structure)**：`verify_e2e.py` / `verify_pdf.py` 统一置于 `scripts/` 下，不在根目录平铺。
 
 ---
 
@@ -44,6 +44,8 @@ DocGuard AI 是一个面向生产力级 AI Agent（Qoder / WorkBuddy / TRAE Work
 - **生产力级入口**：SKILL.md 已定义三个 Tool，Qoder / WorkBuddy / TRAE Work 可直接调用。
 
 ---
+
+<a name="architecture"></a>
 
 ## 三、系统架构
 
@@ -89,6 +91,8 @@ Agent 调用路径：`tools/analyze_document.py` → `POST 127.0.0.1:8765/api/an
 | Agent 规范 | SKILL.md（Tools 定义） |
 
 ---
+
+<a name="quickstart"></a>
 
 ## 七、快速开始
 
@@ -150,6 +154,8 @@ DocGuard 是面向 Agent（Qoder / WorkBuddy / TRAE Work）的生产力级 Skill
 本地服务仅对外暴露 JSON API（见第十节 API 一览），由 Agent 直接调用，确保「纯本地、文档不出机」。
 
 ---
+
+<a name="screenshots"></a>
 
 ## 九、真实 API 运行截图
 
@@ -313,6 +319,8 @@ $env:DOCGUARD_CLOUD_API_KEY="sk-xxx"
 
 ---
 
+<a name="tests"></a>
+
 ## 十五、测试
 
 ```bash
@@ -329,6 +337,9 @@ python tools/analyze_document.py --file examples/contract_sample.txt
 样例数据位于 `examples/`：`contract_sample.txt`、`tender_sample.md`、`tech_sample.md`。
 
 ---
+
+<a name="file-checklist"></a>
+<a name="project-structure"></a>
 
 ## 十六、项目结构
 
