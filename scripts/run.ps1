@@ -2,7 +2,7 @@
 # DocGuard AI - Skill 入口 (FIXED NAME: scripts/run.ps1)
 #
 # 宿主应用 (WorkBuddy / Qoder / TRAE Work) 硬编码调用本文件作为唯一入口。
-# 本脚本：选 Python 解释器 -> 确保本地 venv/依赖 -> 路由到契约入口：
+# 流程：确保本地环境(独立 install-env.ps1) -> 路由：
 #   serve   -> scripts/server.py（长命模型服务，FastAPI @127.0.0.1:8765）
 #   其余动作 -> scripts/client.py（短命 CLI，自动拉起并调用本地服务）
 # 全部运行于 localhost，文档与模型均不出机。
@@ -16,33 +16,41 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $SkillDir  = Resolve-Path (Join-Path $ScriptDir '..')
 Push-Location $SkillDir
 
+# PowerShell 客户端日志（对齐官方：%USERPROFILE%\.openvino\log\docguard-client-<ts>.log）
+$ts = Get-Date -Format "yyyyMMdd-HHmmss"
+try {
+    $logDir = Join-Path $env:USERPROFILE ".openvino\log"
+    if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Force -Path $logDir | Out-Null }
+} catch {
+    $logDir = Join-Path $SkillDir "log"
+    New-Item -ItemType Directory -Force -Path $logDir | Out-Null
+}
+$psLog = Join-Path $logDir "docguard-client-$ts.log"
+function Write-DGLog($msg) {
+    $line = "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] [client pid=$PID] $msg"
+    Write-Host $line
+    Add-Content -Path $psLog -Value $line -Encoding UTF8
+}
+
 # 1) 解析动作 + 透传参数
 $action = if ($args.Length -ge 1) { $args[0] } else { $null }
 $rest   = @()
 if ($args.Length -gt 1) { $rest = $args[1..($args.Length - 1)] }
 
-# 2) 选择 Python 解释器（优先本地 .venv）
+# 2) 确保本地环境就绪（独立 install-env.ps1：建 venv + 装依赖，仅首次）
+Write-DGLog "ensure env via scripts/install-env.ps1"
+& $PSHOME\powershell.exe -NoProfile -File (Join-Path $ScriptDir 'install-env.ps1')
+if ($LASTEXITCODE -ne 0) {
+    Write-DGLog "install-env failed (exit=$LASTEXITCODE)"
+    exit 1
+}
+
+# 3) 选择 venv python
 $venvPy = Join-Path $SkillDir '.venv\Scripts\python.exe'
-if (Test-Path $venvPy) {
-    $py = $venvPy
-} else {
-    if (Get-Command python -ErrorAction SilentlyContinue) {
-        $py = 'python'
-    } else {
-        Write-Error "未找到 Python，请先安装 Python 3.11+ 后再运行 DocGuard。"
-        exit 1
-    }
-}
+if (Test-Path $venvPy) { $py = $venvPy } else { $py = 'python' }
 
-# 3) 环境就绪：.venv 不存在则创建并安装依赖（仅首次）
-if (-not (Test-Path $venvPy)) {
-    Write-Host "[DocGuard] 首次运行：创建虚拟环境并安装依赖 (可能需要几分钟)..."
-    & $py -m venv .venv
-    & .venv\Scripts\python.exe -m pip install -r requirements.txt
-}
-
-# 4) 动作路由（符合官方流程：run.ps1 固定入口 -> client.py 短命入口；serve -> server.py 长命模型服务）
+# 4) 动作路由（run.ps1 固定入口 -> client.py 短命；serve -> server.py 长命）
 switch ($action) {
-    'serve'   { & $py scripts/server.py @rest }
-    default   { & $py scripts/client.py $action @rest }
+    'serve'   { Write-DGLog "route -> server.py"; & $py scripts/server.py @rest }
+    default   { Write-DGLog "route -> client.py $action"; & $py scripts/client.py $action @rest }
 }

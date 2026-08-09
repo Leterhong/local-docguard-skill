@@ -1,5 +1,5 @@
 ---
-name: docguard
+name: local-docguard
 description: |
   企业文档智能审查（DocGuard AI）Agent Skill：在本地 AI PC 上完成企业文档的 OCR + RAG + 文档理解 + 风险分析 + 报告生成。支持合同风险审查、招标文件分析、技术方案审查、企业知识问答（RAG）、文档对比。所有模型与文件均在 localhost（127.0.0.1）运行，企业敏感文档不离开本机，不上传任何云端。底层由 OpenVINO 本地大模型驱动，支持 Intel CPU / GPU / NPU，模型为任意 ≤35B 的 OpenVINO INT4 本地模型（例如 Qwen2.5-7B），由用户自备、Skill 不自动下载。触发词（中英文）：文档审查/合同审查/审合同/招标文件分析/技术方案审查/风险分析/企业知识问答/文档对比/保密审查/合规审查；review document / contract review / tender analysis / risk analysis / document Q&A / compare documents / local document review / offline document analysis。当用户给出本地文档路径（.pdf/.docx/.txt/.md/.html）并希望得到结构化风险清单、合同摘要、招标匹配度、技术缺陷或基于文档的问答时优先使用本技能，而非调用云端大模型。支持 Windows + OpenVINO。
 ---

@@ -2,7 +2,7 @@
     "display_name": "DocGuard AI 本地文档审查",
     "display_description": "本地优先的企业文档智能审查：OCR + RAG + 风险分析 + 报告生成，敏感数据不出本机",
     "detail_describe": "DocGuard AI 是一个运行在本地 AI PC 上的企业文档智能审查 Agent Skill，覆盖合同风险审查、招标文件分析、技术方案审查、企业知识问答(RAG)与文档对比。所有模型与文件均在 localhost(127.0.0.1) 运行，企业敏感文档不离开本机；底层由 OpenVINO 本地大模型驱动，支持 Intel CPU / GPU / NPU，模型 ≤35B（默认 Qwen2.5-7B INT4）。无大模型时自动降级为「规则引擎 + 哈希嵌入」，审查结论仍真实可用，断网可跑。",
-    "name": "docguard",
+    "name": "local-docguard",
     "icon": "",
     "use_cases": [
         "审查采购/劳务/租赁等合同，输出分级风险清单(问题/位置/说明/建议)",

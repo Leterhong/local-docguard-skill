@@ -99,7 +99,7 @@ Agent 调用路径：`tools/analyze_document.py` → `POST 127.0.0.1:8765/api/an
 ### 1. 安装依赖
 
 ```bash
-cd docguard-skill
+cd local-docguard
 python -m venv .venv
 .venv\Scripts\activate        # Windows
 pip install -r requirements.txt
@@ -344,7 +344,7 @@ python tools/analyze_document.py --file examples/contract_sample.txt
 ## 十六、项目结构
 
 ```
-docguard-skill/
+local-docguard/
 ├── SKILL.md                 # Agent Skill 定义（name/description/Tools）
 ├── README.md                # 本文档
 ├── info.json                # 运行时配置（venv、内存、模型清单）
