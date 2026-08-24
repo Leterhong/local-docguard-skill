@@ -38,7 +38,7 @@ DocGuard Local Server  (FastAPI, localhost only)
 
 ## Tools
 
-本 Skill 通过 `tools/` 下五个脚本对外暴露能力，每个脚本输出**标准 JSON**，可直接被 Agent 解析。
+本 Skill 通过 `tools/` 下六个脚本对外暴露能力，每个脚本输出**标准 JSON**，可直接被 Agent 解析。
 
 ### 1. analyze_document
 
@@ -151,6 +151,29 @@ python tools/compare_documents.py -a old.pdf -b new.pdf --type contract
 
 返回字段：`segments[]`（`type=added|removed|modified` + 双方文本 + 定位条款）、`change_count`、`summary`（自动提示是否涉及金额、期限、违约责任、主体变化）。适用于合同谈判多版本比对、标书修订追踪。
 
+### 6. agent_run（自主多步编排 · Agentic 模式）
+
+输入：`--goal` 自然语言目标 + 文档（`--file` 可重复传多份）+ 可选 `--question`（RAG 提问）、`--profile`（投标资质）、`--no-llm`（纯确定性管线）
+
+输出：`agent_run`（最终结论 + 完整步骤 trace + 各步 artifacts）
+
+```bash
+# 单文档全自动：Agent 自己规划 分析->自检->问答 链
+python tools/agent_run.py --file 招标书.docx --profile "注册资本5000万，ISO9001" --goal "判断我方是否应投标"
+# 双版本对比 + 提问
+python tools/agent_run.py --file v1.docx --file v2.docx --question "新付款条件是什么" --goal "对比重大变化"
+```
+
+编排方式：本地 LLM 可用时由模型做 ReAct 式规划（思考->行动->观察循环，决定调用 analyze/bid_check/compare/search 哪个工具、读到中间结果后再定下一步）；模型不可用时回退确定性管线（按文档类型与输入自动串联），始终产出正确结果。返回字段：
+
+- `answer`：最终中文结论
+- `planner`：`llm`（模型规划）| `deterministic`（确定性管线）
+- `llm_used` / `llm_model_name`：本次是否真实调用了本地 OpenVINO 模型
+- `steps[]`：每步的 `thought`（模型思考）、`action`（调用的工具）、`args`、`observation`（观察结果）、`duration_s` —— 完整 Agentic 执行证据链
+- `artifacts`：各工具产出的完整结构化结果
+
+同时本 Skill 具备**双向互操作**能力：对外提供 6 个独立 CLI 工具与本地 HTTP API（127.0.0.1:8765），可被任何其他 Skill / Agent 直接调用；对内编排器组合的就是这同一组工具入口。
+
 ## 示例（Examples）
 
 | 用户意图 | 调用 |
@@ -162,6 +185,7 @@ python tools/compare_documents.py -a old.pdf -b new.pdf --type contract
 | "审查这份技术方案有没有安全问题" | `analyze_document.py --file 设计方案.docx --type technical` |
 | "这个合同付款周期和违约责任是什么？" | `search_document.py --query "付款周期和违约责任"` |
 | "出一份 HTML 审查报告" | `generate_report.py --doc-id <id> --format html` |
+| "全流程自动审一遍，该查的都查" | `agent_run.py --file 合同.pdf --goal "全面审查"` |
 
 ## 何时使用 / 何时不使用
 

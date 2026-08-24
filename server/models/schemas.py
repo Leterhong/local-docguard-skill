@@ -235,6 +235,22 @@ class BidCheckRequest(BaseModel):
     use_cloud: bool = False
 
 
+class AgentRunRequest(BaseModel):
+    """Multi-step agentic run request.
+
+    The orchestrator plans and chains the DocGuard tools itself (analyze /
+    bid check / compare / RAG search) driven by the local LLM when
+    available, or a deterministic planner otherwise.
+    """
+    goal: str = Field(..., description="What the user wants, in natural language")
+    file_paths: List[str] = Field(default_factory=list, description="Documents to review")
+    question: str = ""
+    profile_text: str = ""
+    doc_type_hint: Optional[DocumentType] = None
+    use_llm: bool = True
+    user_id: str = "default"
+
+
 # =====================================================================
 # API response wrappers
 # =====================================================================
