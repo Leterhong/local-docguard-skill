@@ -61,6 +61,7 @@ class RiskItem(BaseModel):
     explanation: str = Field("", description="Why this is a risk")
     suggestion: str = Field("", description="Recommended revision")
     evidence: str = Field("", description="Original text snippet from the document")
+    clause: str = Field("", description="法规/合同依据，如《民法典》第509条、《招标投标法》第33条")
 
 
 class RequirementItem(BaseModel):
@@ -72,6 +73,14 @@ class RequirementItem(BaseModel):
     matched: bool = False
     evidence: str = ""
     gap_note: str = ""
+
+
+class ComplianceItem(BaseModel):
+    """单项合规检查结论，用于报告「合规检查清单」段。"""
+
+    item: str = Field(..., description="检查项，如 主体资格 / 付款条款 / 违约责任")
+    status: str = Field("待确认", description="通过 | 风险 | 待确认")
+    note: str = ""
 
 
 class ChapterCheck(BaseModel):
@@ -126,6 +135,7 @@ class DocumentAnalysis(BaseModel):
     llm_used: bool = False
     llm_model_name: str = ""
     engine_notes: str = ""
+    compliance_checklist: List["ComplianceItem"] = Field(default_factory=list)
 
     created_at: datetime = Field(default_factory=datetime.now)
 

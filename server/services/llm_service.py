@@ -380,6 +380,12 @@ class LLMService:
             logger.error("Cloud provider requires 'requests': %s", exc)
             return ""
 
+        # 数据安全：向云端发送前对文本做 PII 脱敏（身份证/手机号/银行卡/邮箱等），
+        # 原始文件字节永不出机，仅脱敏后的文本摘要/片段外发。
+        prompt = redact_text(prompt)
+        if system:
+            system = redact_text(system)
+
         url = f"{endpoint}/chat/completions"
         messages = []
         if system:

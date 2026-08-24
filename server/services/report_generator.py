@@ -1,13 +1,15 @@
 """
 Report generator.
 
-Produces Markdown / HTML / JSON review reports from a DocumentAnalysis
+Produces Markdown / HTML / JSON / DOCX review reports from a DocumentAnalysis
 result. Reports are saved under the user-isolated reports directory and
-contain: document metadata, summary, risk list (with evidence),
-tender/technical-specific sections, and an overall risk assessment.
+contain: document metadata, summary, risk list (with evidence, recommended
+revision and legal clause reference), tender/technical-specific sections,
+a compliance checklist, and an overall risk assessment.
 
-No external document library is required; Markdown is converted to HTML
-with the `markdown` package for the demo UI.
+No external document library is required for Markdown/HTML/JSON; DOCX uses
+python-docx (already a dependency). Markdown is converted to HTML with the
+`markdown` package for the demo UI.
 """
 from __future__ import annotations
 
@@ -39,7 +41,7 @@ def generate_report(
     user_id: str = "default",
 ) -> Report:
     fmt = fmt.lower()
-    if fmt not in ("markdown", "html", "json"):
+    if fmt not in ("markdown", "html", "json", "docx"):
         raise ValueError(f"Unsupported report format: {fmt}")
 
     report_id = uuid.uuid4().hex[:12]
@@ -49,19 +51,26 @@ def generate_report(
     if fmt == "markdown":
         content = _render_markdown(analysis, title)
         ext = "md"
+        file_path = reports_dir / f"docguard_report_{analysis.document_id}_{report_id}.{ext}"
+        file_path.write_text(content, encoding="utf-8")
     elif fmt == "html":
         md = _render_markdown(analysis, title)
         content = _render_html(md, analysis, title)
         ext = "html"
+        file_path = reports_dir / f"docguard_report_{analysis.document_id}_{report_id}.{ext}"
+        file_path.write_text(content, encoding="utf-8")
+    elif fmt == "docx":
+        # DOCX is a binary format; the report body lives in the .docx file.
+        file_path = _render_docx(analysis, title, reports_dir, report_id)
+        content = ""
+        ext = "docx"
     else:
         content = json.dumps(analysis.to_public_dict(), ensure_ascii=False, indent=2)
         ext = "json"
+        file_path = reports_dir / f"docguard_report_{analysis.document_id}_{report_id}.{ext}"
+        file_path.write_text(content, encoding="utf-8")
 
-    filename = f"docguard_report_{analysis.document_id}_{report_id}.{ext}"
-    file_path = reports_dir / filename
-    file_path.write_text(content, encoding="utf-8")
     logger.info("Report generated: %s", file_path)
-
     return Report(
         report_id=report_id,
         document_id=analysis.document_id,
@@ -129,13 +138,25 @@ def _render_markdown(a: DocumentAnalysis, title: str) -> str:
         lines.append(f"- **位置：** {r.location}")
         lines.append(f"- **风险说明：** {r.explanation or '（无）'}")
         lines.append(f"- **修改建议：** {r.suggestion or '（无）'}")
+        if r.clause:
+            lines.append(f"- **法规依据：** {r.clause}")
         lines.append(f"- **原文证据：** ")
         lines.append(f"  > {r.evidence.replace(chr(10), ' ')}")
         lines.append("")
 
+    # Compliance checklist
+    if a.compliance_checklist:
+        lines.append("## 五、合规检查清单")
+        lines.append("")
+        lines.append("| 检查项 | 状态 | 说明 |")
+        lines.append("|--------|------|------|")
+        for c in a.compliance_checklist:
+            lines.append(f"| {c.item} | {c.status} | {c.note or '—'} |")
+        lines.append("")
+
     # Tender section
     if a.requirements:
-        lines.append("## 五、招标要求分析")
+        lines.append("## 六、招标要求分析")
         lines.append("")
         if a.capability_match_score is not None:
             lines.append(f"**企业匹配度：{a.capability_match_score}%**")
@@ -154,7 +175,7 @@ def _render_markdown(a: DocumentAnalysis, title: str) -> str:
 
     # Technical section
     if a.chapter_checks:
-        lines.append("## 六、技术方案章节检查")
+        lines.append("## 七、技术方案章节检查")
         lines.append("")
         lines.append("| 章节 | 状态 | 说明 |")
         lines.append("|------|------|------|")
@@ -162,19 +183,18 @@ def _render_markdown(a: DocumentAnalysis, title: str) -> str:
             mark = "已包含" if c.present else "缺失"
             lines.append(f"| {c.chapter} | {mark} | {c.note} |")
         lines.append("")
-
-    if a.security_issues:
-        lines.append("### 安全问题")
-        lines.append("")
-        for r in a.security_issues:
-            lines.append(f"- **{r.issue}**（{r.location}）：{r.explanation}")
-        lines.append("")
-    if a.performance_risks:
-        lines.append("### 性能风险")
-        lines.append("")
-        for r in a.performance_risks:
-            lines.append(f"- **{r.issue}**（{r.location}）：{r.explanation}")
-        lines.append("")
+        if a.security_issues:
+            lines.append("### 安全问题")
+            lines.append("")
+            for r in a.security_issues:
+                lines.append(f"- **{r.issue}**（{r.location}）：{r.explanation}")
+            lines.append("")
+        if a.performance_risks:
+            lines.append("### 性能风险")
+            lines.append("")
+            for r in a.performance_risks:
+                lines.append(f"- **{r.issue}**（{r.location}）：{r.explanation}")
+            lines.append("")
 
     # Footer
     lines.append("---")
@@ -188,9 +208,18 @@ def _render_markdown(a: DocumentAnalysis, title: str) -> str:
 def _render_html(md: str, a: DocumentAnalysis, title: str) -> str:
     try:
         import markdown as md_lib
+
         body = md_lib.markdown(md, extensions=["tables", "fenced_code"])
     except Exception:  # noqa: BLE001
         body = "<pre>" + md.replace("<", "&lt;") + "</pre>"
+
+    # Colorize the inline severity tags ([高]/[中]/[低]) produced by the markdown renderer.
+    for lvl, cn in _LEVEL_CN.items():
+        color = _LEVEL_COLOR[lvl]
+        body = body.replace(
+            f"[{cn}]",
+            f'<span style="color:{color};font-weight:600;">[{cn}]</span>',
+        )
 
     level = a.overall_risk_level.value
     color = _LEVEL_COLOR[a.overall_risk_level]
@@ -219,3 +248,149 @@ def _render_html(md: str, a: DocumentAnalysis, title: str) -> str:
 {body}
 </body>
 </html>"""
+
+
+def _render_docx(a: DocumentAnalysis, title: str, reports_dir: Path, report_id: str) -> Path:
+    """Generate a formatted .docx report (Word) — opens with tracked-changes-friendly layout."""
+    from docx import Document
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.shared import Pt, RGBColor
+
+    def rgb(hex_color: str) -> RGBColor:
+        return RGBColor.from_string(hex_color.lstrip("#"))
+
+    doc = Document()
+
+    # Title
+    h = doc.add_heading(title, level=0)
+    h.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+    meta = doc.add_paragraph()
+    meta.add_run(f"生成时间：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n").italic = True
+    meta.add_run(f"模型：{a.llm_model_name or '规则引擎（无LLM）'}").italic = True
+
+    # ---- 基本信息 ----
+    doc.add_heading("一、文档基本信息", level=1)
+    meta_rows = [
+        ("文件名", a.file_name),
+        ("文档类型", a.summary.doc_type.value),
+        ("文件类型", a.file_type),
+        ("页数", str(a.page_count)),
+        ("字符数", str(a.char_count)),
+        ("文本块数", str(a.chunk_count)),
+        ("综合风险等级", f"{_LEVEL_CN[a.overall_risk_level]}（{a.overall_risk_level.value}）"),
+    ]
+    t = doc.add_table(rows=0, cols=2)
+    t.style = "Light Grid Accent 1"
+    for k, v in meta_rows:
+        cells = t.add_row().cells
+        cells[0].text = k
+        cells[1].text = v
+
+    # ---- 摘要 ----
+    doc.add_heading("二、文档摘要", level=1)
+    if a.summary.summary_text:
+        doc.add_paragraph(a.summary.summary_text)
+    elif a.summary.key_points:
+        for kp in a.summary.key_points:
+            doc.add_paragraph(kp, style="List Bullet")
+    else:
+        doc.add_paragraph("（无摘要）")
+    if a.summary.parties:
+        p = doc.add_paragraph()
+        p.add_run("相关方：").bold = True
+        p.add_run("、".join(a.summary.parties))
+
+    # ---- 风险概览 ----
+    doc.add_heading("三、风险概览", level=1)
+    counts = a.risk_count_by_level
+    doc.add_paragraph(
+        f"高风险：{counts.get('High', 0)} 项；中风险：{counts.get('Medium', 0)} 项；"
+        f"低风险：{counts.get('Low', 0)} 项"
+    )
+
+    # ---- 风险明细 ----
+    doc.add_heading("四、风险明细", level=1)
+    sorted_risks = sorted(a.risks, key=lambda r: _LEVEL_ORDER[r.risk_level])
+    for r in sorted_risks:
+        rh = doc.add_heading(level=2)
+        run = rh.add_run(f"{r.id} [{_LEVEL_CN[r.risk_level]}] {r.issue}")
+        run.font.color.rgb = rgb(_LEVEL_COLOR[r.risk_level])
+        for label, value in (
+            ("类别", r.category),
+            ("位置", r.location),
+            ("风险说明", r.explanation or "（无）"),
+            ("修改建议", r.suggestion or "（无）"),
+        ):
+            p = doc.add_paragraph()
+            p.add_run(f"{label}：").bold = True
+            p.add_run(value)
+        if r.clause:
+            p = doc.add_paragraph()
+            p.add_run("法规依据：").bold = True
+            p.add_run(r.clause)
+        if r.evidence:
+            p = doc.add_paragraph()
+            p.add_run("原文证据：").bold = True
+            p.add_run(r.evidence)
+
+    # ---- 合规检查清单 ----
+    if a.compliance_checklist:
+        doc.add_heading("五、合规检查清单", level=1)
+        ct = doc.add_table(rows=1, cols=3)
+        ct.style = "Light Grid Accent 1"
+        hdr = ct.rows[0].cells
+        hdr[0].text, hdr[1].text, hdr[2].text = "检查项", "状态", "说明"
+        for c in a.compliance_checklist:
+            cells = ct.add_row().cells
+            cells[0].text = c.item
+            cells[1].text = c.status
+            cells[2].text = c.note or "—"
+
+    # ---- 招标要求 ----
+    if a.requirements:
+        doc.add_heading("六、招标要求分析", level=1)
+        if a.capability_match_score is not None:
+            p = doc.add_paragraph()
+            p.add_run(f"企业匹配度：{a.capability_match_score}%").bold = True
+        rt = doc.add_table(rows=1, cols=4)
+        rt.style = "Light Grid Accent 1"
+        hr = rt.rows[0].cells
+        hr[0].text, hr[1].text, hr[2].text, hr[3].text = "编号", "类别", "要求", "是否满足"
+        for req in a.requirements:
+            cells = rt.add_row().cells
+            cells[0].text = req.id
+            cells[1].text = req.category
+            cells[2].text = req.requirement[:80]
+            cells[3].text = "是" if req.matched else "待确认"
+        if a.missing_capabilities:
+            p = doc.add_paragraph()
+            p.add_run("待确认/缺失能力：").bold = True
+            p.add_run("；".join(a.missing_capabilities))
+
+    # ---- 技术方案章节 ----
+    if a.chapter_checks:
+        doc.add_heading("七、技术方案章节检查", level=1)
+        ct2 = doc.add_table(rows=1, cols=3)
+        ct2.style = "Light Grid Accent 1"
+        hr2 = ct2.rows[0].cells
+        hr2[0].text, hr2[1].text, hr2[2].text = "章节", "状态", "说明"
+        for c in a.chapter_checks:
+            cells = ct2.add_row().cells
+            cells[0].text = c.chapter
+            cells[1].text = "已包含" if c.present else "缺失"
+            cells[2].text = c.note
+
+    # ---- 页脚 ----
+    doc.add_paragraph("")
+    foot = doc.add_paragraph()
+    foot.add_run(
+        "本报告由 DocGuard AI 在本地生成，文档与模型均运行于本机，未上传任何云端。"
+    ).italic = True
+    if a.engine_notes:
+        doc.add_paragraph(a.engine_notes)
+
+    filename = f"docguard_report_{a.document_id}_{report_id}.docx"
+    file_path = reports_dir / filename
+    doc.save(str(file_path))
+    return file_path

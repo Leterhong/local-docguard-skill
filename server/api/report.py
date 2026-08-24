@@ -71,6 +71,7 @@ async def download_report(report_id: str):
         ".html": "text/html; charset=utf-8",
         ".md": "text/markdown; charset=utf-8",
         ".json": "application/json; charset=utf-8",
+        ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     }
     return FileResponse(
         path=str(path),

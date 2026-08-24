@@ -58,7 +58,7 @@ def main():
     group.add_argument("--analysis", help="Path to a JSON file containing analysis_result")
     parser.add_argument(
         "--format", "-f",
-        choices=["markdown", "html", "json"],
+        choices=["markdown", "html", "json", "docx"],
         default="markdown",
     )
     parser.add_argument("--user", default="default")
