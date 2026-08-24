@@ -1,0 +1,35 @@
+# 统一身份认证系统技术方案
+
+## 系统架构
+采用微服务架构，通过 API 网关统一接入。
+
+## 技术选型
+后端 Python + FastAPI，数据库 PostgreSQL。
+
+## 接口设计
+RESTful API，JWT 认证。
+
+## 数据设计
+用户表、权限表、审计日志表。
+
+## 安全设计
+数据库连接密码硬编码如下：
+password = "admin12345"
+内部服务调用走 http://internal.example.com/api
+用户登录查询：query = "SELECT * FROM users WHERE name='" + username + "'"
+数据处理使用 eval(request.args.get('expr'))
+密码使用 md5(password.encode()).hexdigest() 存储
+配置通过 pickle.loads(cfg_blob) 加载
+CORS 配置 allow_origins=["*"] 且 allow_credentials=True
+日志记录 logger.info(f"login token={token}")
+配置文件权限 chmod 777 /etc/app/config
+对外请求 requests.get(url, verify=False)
+
+## 性能设计
+支持高并发，订单查询在循环内逐条 execute（for order in orders: cur.execute(...)）。
+
+## 部署方案
+Docker 容器化部署。
+
+## 测试方案
+单元测试覆盖率 80%。

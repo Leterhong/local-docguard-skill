@@ -29,7 +29,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from server import __version__
-from server.api import analyze, compare, health, report, search
+from server.api import analyze, bid, compare, health, report, search
 from server.config import get_settings
 from server.services.container import get_container
 from server.services.security import get_logger
@@ -63,6 +63,7 @@ app.include_router(analyze.router)
 app.include_router(search.router)
 app.include_router(report.router)
 app.include_router(compare.router)
+app.include_router(bid.router)
 
 
 # ----------------------------------------------------------------------

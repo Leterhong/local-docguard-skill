@@ -38,7 +38,7 @@ DocGuard Local Server  (FastAPI, localhost only)
 
 ## Tools
 
-本 Skill 通过 `tools/` 下三个脚本对外暴露能力，每个脚本输出**标准 JSON**，可直接被 Agent 解析。
+本 Skill 通过 `tools/` 下五个脚本对外暴露能力，每个脚本输出**标准 JSON**，可直接被 Agent 解析。
 
 ### 1. analyze_document
 
@@ -116,12 +116,50 @@ python tools/generate_report.py --doc-id <id> --format html
 python tools/generate_report.py --analysis result.json --format markdown
 ```
 
+### 4. check_bid（招投标资格自检）
+
+输入：招标文件（`--tender` 本地路径，或已分析的 `--doc-id`）+ 我方资质（`--profile-text` 文本和/或 `--profile-file` 本地文件）
+
+输出：`bid_evaluation`（逐条资质核对 + 匹配度 + 能投/不能投结论 + 废标级缺口清单）
+
+```bash
+# 招标文件 + 资质文本
+python tools/check_bid.py --tender tender.docx --profile-text "注册资本5000万，ISO9001，3个高校项目..."
+# 招标文件 + 资质文件
+python tools/check_bid.py --tender tender.pdf --profile-file our_company.docx
+# 复用已分析的招标书 + 仅规则引擎
+python tools/check_bid.py --doc-id <id> --profile-text "..." --no-llm
+```
+
+核对逻辑：确定性规则自动判定（注册资本数值比对、类似项目数量、ISO/CMMI/高新等证书、信息系统项目管理师/PMP 等人员证书、从业年限），保证金/交付期/技术规范等"履约动作"标记为待确认而非资质缺口；本地 LLM 可用时对"待确认"项做语义判断升级。返回字段：
+
+- `verdict`：能投/谨慎/不建议投标的结论
+- `score`：满足度百分比（待确认项按 0.5 计）
+- `items[]`：每条要求的 `status(matched|uncertain|missing)`、`hard_gate`（是否废标级硬门槛）、`reason`、`evidence`
+- `blocking_gaps[]`：未满足的硬性资质门槛清单（废标风险）
+
+### 5. compare_documents（文档版本对比）
+
+输入：两版文档（`--old` / `--new`，支持 pdf/docx/txt/md/html）
+
+输出：`comparison`（结构化差异 + 高风险变化提示）
+
+```bash
+python tools/compare_documents.py --old contract_v1.docx --new contract_v2.docx
+python tools/compare_documents.py -a old.pdf -b new.pdf --type contract
+```
+
+返回字段：`segments[]`（`type=added|removed|modified` + 双方文本 + 定位条款）、`change_count`、`summary`（自动提示是否涉及金额、期限、违约责任、主体变化）。适用于合同谈判多版本比对、标书修订追踪。
+
 ## 示例（Examples）
 
 | 用户意图 | 调用 |
 |---|---|
 | "审查这份采购合同" | `analyze_document.py --file 采购合同.pdf` |
 | "分析招标文件，看我们能不能投" | `analyze_document.py --file 招标书.docx --type tender` |
+| "对照这份招标书，我们公司资质够不够" | `check_bid.py --tender 招标书.docx --profile-file 我司资质.docx` |
+| "对比这两版合同改了什么，有没有坑" | `compare_documents.py --old v1.docx --new v2.docx` |
+| "审查这份技术方案有没有安全问题" | `analyze_document.py --file 设计方案.docx --type technical` |
 | "这个合同付款周期和违约责任是什么？" | `search_document.py --query "付款周期和违约责任"` |
 | "出一份 HTML 审查报告" | `generate_report.py --doc-id <id> --format html` |
 

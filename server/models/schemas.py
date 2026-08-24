@@ -219,6 +219,22 @@ class CompareRequest(BaseModel):
     doc_type_hint: Optional[DocumentType] = None
 
 
+class BidCheckRequest(BaseModel):
+    """Tender qualification self-check request.
+
+    Provide EITHER a tender file_path OR a previously analyzed tender
+    document_id whose requirements were extracted. The bidder's own
+    qualifications can be supplied as free text and/or a local file.
+    """
+    file_path: Optional[str] = None
+    document_id: Optional[str] = None
+    profile_text: str = ""
+    profile_file: Optional[str] = None
+    user_id: str = "default"
+    use_llm: bool = True
+    use_cloud: bool = False
+
+
 # =====================================================================
 # API response wrappers
 # =====================================================================

@@ -152,25 +152,37 @@ class TenderRuleEngine:
         ("交付要求", r"(?:工期|交付期|交货期|完工|实施周期|服务期)[^。；\n]{2,50}"),
         ("保证金", r"(?:投标保证金|履约保证金|质保金|保函)[^。；\n]{2,50}"),
         ("人员要求", r"(?:项目经理|负责人|团队成员)[^。；\n]{0,30}?(?:具备|具有|资格|证书)[^。；\n]{2,50}"),
-        ("认证要求", r"(?:ISO|CMMI|资质证书|认证|许可证|高新技术企业)[^。；\n]{2,40}"),
+        ("认证要求", r"(?:ISO|CMMI|资质证书|体系认证|认证证书|许可证|高新技术企业|信息系统项目管理师|系统集成|软件企业)[^。；\n]{0,40}"),
     ]
 
     def extract_requirements(self, text: str) -> List[RequirementItem]:
-        reqs: List[RequirementItem] = []
-        idx = 1
-        seen = set()
+        # Collect (category, text) then dedup by near-containment, keeping
+        # the longer/more informative wording.
+        collected: List[tuple] = []
         for category, pattern in self.REQ_PATTERNS:
             for m in re.finditer(pattern, text):
                 req_text = m.group(0).strip().replace("\n", " ")
-                if len(req_text) < 4 or req_text in seen:
+                if len(req_text) < 6:
                     continue
-                seen.add(req_text)
-                reqs.append(RequirementItem(
-                    id=f"REQ-{idx:03d}", requirement=req_text[:200],
-                    category=category, evidence=req_text[:200]))
-                idx += 1
-                if idx > 50:
-                    return reqs
+                norm = re.sub(r"\s+", "", req_text)
+                dup_i = None
+                for i, (_, prev) in enumerate(collected):
+                    pn = re.sub(r"\s+", "", prev)
+                    if norm in pn or pn in norm:
+                        dup_i = i
+                        break
+                if dup_i is not None:
+                    cat_prev, prev = collected[dup_i]
+                    if len(norm) > len(re.sub(r"\s+", "", prev)):
+                        collected[dup_i] = (category, req_text)
+                else:
+                    collected.append((category, req_text))
+
+        reqs: List[RequirementItem] = []
+        for idx, (category, req_text) in enumerate(collected[:50], start=1):
+            reqs.append(RequirementItem(
+                id=f"REQ-{idx:03d}", requirement=req_text[:200],
+                category=category, evidence=req_text[:200]))
         return reqs
 
     def analyze(self, text: str) -> Tuple[List[RiskItem], List[RequirementItem]]:
@@ -216,7 +228,7 @@ class TechnicalRuleEngine:
     ]
 
     SECURITY = [
-        (r"(?:password|passwd|pwd|密码|secret|token)\s*[:=]\s*['\"][^'\"]{4,}",
+        (r"(?:password|passwd|pwd|密码|secret|token|api[_-]?key|access[_-]?key)\s*[:=]\s*['\"][^'\"]{4,}",
          "疑似硬编码凭据", "配置/代码中出现明文密码或密钥，存在严重隐患。",
          "使用KMS或环境变量，禁止明文提交凭据。"),
         (r"http://(?!localhost|127\.0\.0\.1)",
@@ -228,6 +240,24 @@ class TechnicalRuleEngine:
         (r"eval\s*\(|exec\s*\(|os\.system|subprocess[\s\S]{0,20}shell\s*=\s*True",
          "危险函数调用", "使用eval/exec/系统命令，可能导致远程代码执行。",
          "避免危险函数；必须使用时做严格白名单校验。"),
+        (r"(?:md5|sha1)\s*\(|\.encode\(\)[\s\S]{0,10}(?:md5|sha1)|DES[^A-Za-z]|RC4|ECB\s*mode",
+         "使用弱加密算法", "MD5/SHA1/DES/RC4/ECB 已被证明不安全，无法满足现代合规要求。",
+         "密码用 bcrypt/argon2；摘要用 SHA-256 及以上；对称加密用 AES-GCM。"),
+        (r"pickle\.loads?\s*\(|yaml\.load\s*\((?!.*SafeLoader)|marshal\.loads?",
+         "不安全反序列化", "pickle/yaml.load(非SafeLoader) 可执行任意代码，反序列化不可信数据风险极高。",
+         "用 json 或 yaml.safe_load；确需反序列化时做签名校验。"),
+        (r"allow_origins\s*=\s*\[\s*['\"]\*['\"]\s*\][\s\S]{0,40}allow_credentials\s*=\s*True",
+         "CORS 通配源允许凭据", "allow_origins=* 同时允许携带凭据，会导致跨站凭据泄露。",
+         "明确列出可信来源域名，通配源下禁止 allow_credentials。"),
+        (r"(?:log(?:ger)?(?:\.(?:info|error|warning|debug|critical))?|print)\s*\([\s\S]{0,60}(?:password|密码|id_?card|身份证|bank.?card|银行卡|token|secret|api[_-]?key)",
+         "日志疑似记录敏感信息", "将密码/身份证/银行卡/token 写入日志，违反数据最小化与脱敏要求。",
+         "日志输出前对敏感字段脱敏或直接禁止记录。"),
+        (r"chmod\s+(?:777|0o777)|<permission[^>]*>0777",
+         "过宽的文件权限", "文件/目录权限设为 777，任意用户可读写执行。",
+         "遵循最小权限原则，配置文件用 600、目录用 750。"),
+        (r"verify\s*=\s*False|CORS[^;]{0,30}disable|ssl[_-]?verify\s*=\s*False|InsecureRequestWarning",
+         "禁用了 TLS 证书校验", "verify=False 会关闭证书验证，易受中间人攻击。",
+         "生产环境必须启用证书校验，确需关闭时仅限内网测试。"),
     ]
 
     PERFORMANCE = [
@@ -236,6 +266,15 @@ class TechnicalRuleEngine:
         (r"(?:同步|sync|blocking)[\s\S]{0,20}(?:调用|请求|io)",
          "疑似同步阻塞IO", "同步阻塞调用在高并发下会耗尽线程资源。",
          "改用异步非阻塞IO或消息队列削峰。"),
+        (r"(?:for|while)[\s\S]{0,80}?(?:execute|query|find|select)\s*\(",
+         "疑似 N+1 查询", "循环内逐条查询数据库，数据量增长时延迟与连接数急剧上升。",
+         "用批量查询/IN 语句/JOIN 或预加载（eager loading）合并。"),
+        (r"(?:findAll|find_all|query\.all|\.all\(\))[\s\S]{0,40}(?:未?分页|无分页|without\s+limit)",
+         "查询未分页", "全量返回大结果集会造成内存与网络压力。",
+         "强制分页（LIMIT/OFFSET 或游标），并设置每页上限。"),
+        (r"(?:send_mail|sendmail|requests\.(?:post|get)|http)\s*\([^)]*\)[\s\S]{0,30}(?:同步|等待|await 之外)",
+         "请求路径内同步外呼", "在用户请求链路中同步调用邮件/外部HTTP，会放大尾延迟。",
+         "改为异步任务/消息队列，外部调用设置超时与熔断。"),
     ]
 
     def chapter_checks(self, text: str) -> List[ChapterCheck]:
