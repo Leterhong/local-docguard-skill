@@ -18,7 +18,9 @@ model:
   name: "Qwen2.5-7B-Instruct-int4-ov"
   path: ".openvino/models/Qwen2.5-7B-Instruct-int4-ov"
   runtime: "openvino"          # openvino | transformers
-  device: "CPU"                # CPU | GPU | NPU | AUTO  (set GPU/NPU on a real AI PC)
+  # AUTO：在 Intel Core Ultra AI PC 上由 OpenVINO 自动调度 NPU/GPU 加速；
+  # 无独立加速器时自动回退 CPU。现场演示端侧硬件加速请保持 AUTO。
+  device: "AUTO"               # CPU | GPU | NPU | AUTO
   max_new_tokens: 1024
   temperature: 0.1             # low temperature for deterministic legal review
   top_p: 0.9
