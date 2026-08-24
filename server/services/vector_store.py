@@ -88,7 +88,9 @@ class VectorStore:
                 if self._index.ntotal == len(self._records):
                     # Reconstruct in-memory vectors so records and vectors
                     # stay perfectly aligned for numpy scoring.
-                    self._vectors = self._faiss.reconstruct_n(
+                    # NOTE: reconstruct_n is a method of the index object,
+                    # not the faiss module.
+                    self._vectors = self._index.reconstruct_n(
                         0, self._index.ntotal
                     ).astype(np.float32)
                 else:

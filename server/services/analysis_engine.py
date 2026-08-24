@@ -294,15 +294,39 @@ class AnalysisEngine:
     def _extract_keypoints_contract(self, text: str) -> List[str]:
         points = []
         import re
-        amount = re.search(r"(?:合同金额|总价|价款|服务费)[^0-9]{0,10}([¥￥]?\s*[\d,]+(?:\.\d+)?\s*(?:万元|元)?)", text)
+        # Amount: require a real currency marker (¥/￥/RMB), a unit (万元/元),
+        # or Chinese uppercase amount — this avoids matching clause numbers
+        # like "2.1" that follow "价款".
+        amount = None
+        m = re.search(r"[¥￥]\s*([\d,]+(?:\.\d+)?)\s*(万元|万元人民币|万人民币|元)?", text)
+        if m:
+            unit = m.group(2) or "元"
+            amount = f"{m.group(1)} {unit}"
+        if not amount:
+            m = re.search(r"([\d,]{4,}(?:\.\d+)?)\s*(万元|万元人民币|万人民币|元整|元)", text)
+            if m:
+                amount = f"{m.group(1)} {m.group(2)}"
+        if not amount:
+            m = re.search(r"(人民币)?([壹贰叁肆伍陆柒捌玖拾佰仟万亿零整]+(?:万|元))", text)
+            if m:
+                amount = m.group(0)
         if amount:
-            points.append(f"合同金额：{amount.group(1)}")
-        term = re.search(r"(?:合同期限|有效期|服务期)[：:\s]*([^\n。；]{2,50})", text)
+            points.append(f"合同金额：{amount}")
+        # Term: must be a labeled field followed by a colon or an actual
+        # date/duration expression (年/月/日), not a section heading.
+        term = None
+        m = re.search(r"(?:合同期限|有效期|服务期|履约期限)[：:]\s*([^\n。；]{2,60})", text)
+        if m:
+            term = m.group(1).strip()
+        if not term:
+            m = re.search(r"(?:合同期限|有效期|服务期|履约期限)[^。；\n]{0,6}?(\d+\s*(?:年|个月|月|日|天)[^\n。；]{0,20})", text)
+            if m:
+                term = m.group(1).strip()
         if term:
-            points.append(f"合同期限：{term.group(1).strip()}")
-        pay = re.search(r"付款[^。；\n]{0,60}", text)
+            points.append(f"合同期限：{term}")
+        pay = re.search(r"付款方式[^。；\n]{0,80}", text)
         if pay:
-            points.append(f"付款约定：{pay.group(0).strip()[:60]}")
+            points.append(f"付款约定：{pay.group(0).strip()[:80]}")
         if not points:
             points.append("合同已解析，详见风险列表")
         return points
