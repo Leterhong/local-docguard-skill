@@ -1,101 +1,94 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1000" height="700" viewBox="0 0 1000 700" font-family="'Segoe UI','Microsoft YaHei',sans-serif">
   <defs>
-    <marker id="arr-arch" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+    <marker id="arr" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
       <path d="M0,0 L8,3 L0,6 Z" fill="#1F883D"/>
+    </marker>
+    <marker id="arr-o" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#EA4335"/>
     </marker>
     <style>
       .title{font-size:22px;font-weight:700;fill:#1F2328}
       .col{font-size:15px;font-weight:700;fill:#1F883D}
       .box{fill:#F6F8FA;stroke:#D0D7DE;stroke-width:1.5}
       .boxg{fill:#EAF4EC;stroke:#1F883D;stroke-width:1.5}
+      .boxt{fill:#EAF4EC;stroke:#1F883D;stroke-width:1.5;stroke-dasharray:5 4}
+      .boxr{fill:#FCE8E6;stroke:#EA4335;stroke-width:2}
       .lbl{font-size:13px;font-weight:600;fill:#1F2328}
       .sub{font-size:11px;fill:#57606A}
       .hl{font-size:13px;font-weight:700;fill:#1F883D}
+      .hlr{font-size:13px;font-weight:700;fill:#EA4335}
       .bantxt{font-size:14px;font-weight:700;fill:#FFFFFF}
       .banitem{font-size:12px;fill:#C9D1D9}
+      .note{font-size:11px;fill:#57606A;font-style:italic}
     </style>
   </defs>
   <rect width="1000" height="700" fill="#FFFFFF"/>
 
-  <text x="40" y="42" class="title">图 1　DocGuard AI 系统架构 — Agent 工具 → Skill → 本地服务层</text>
+  <text x="40" y="42" class="title">图 1　DocGuard AI 系统架构 — Agent 宿主 ⇄ Skill(6 工具) ⇄ 本地服务 + ReAct 编排</text>
   <line x1="40" y1="58" x2="960" y2="58" stroke="#D0D7DE"/>
 
-  <!-- Column headers -->
-  <text x="60" y="92" class="col">① 生产力级 Agent</text>
-  <text x="360" y="92" class="col">② DocGuard Skill 入口</text>
-  <text x="680" y="92" class="col">③ 本地服务层（127.0.0.1）</text>
+  <!-- ① 宿主 Agent -->
+  <text x="60" y="90" class="col">① 生产力级 Agent 宿主</text>
+  <rect x="60" y="105" width="230" height="46" rx="8" class="box"/>
+  <text x="76" y="128" class="lbl">Qoder</text><text x="76" y="144" class="sub">AI 编程与 Agent IDE</text>
+  <rect x="60" y="160" width="230" height="46" rx="8" class="box"/>
+  <text x="76" y="183" class="lbl">WorkBuddy</text><text x="76" y="199" class="sub">生产力级 AI 助手（基线）</text>
+  <rect x="60" y="215" width="230" height="46" rx="8" class="box"/>
+  <text x="76" y="238" class="lbl">TRAE Work</text><text x="76" y="254" class="sub">Agent 工作流平台</text>
+  <rect x="60" y="270" width="230" height="40" rx="8" class="boxt"/>
+  <text x="76" y="295" class="lbl">其它 Skills（外部）</text>
+  <text x="300" y="200" class="note" transform="rotate(-90 300 200)">⇄ 双向互操作</text>
 
-  <!-- ① Agent Host -->
-  <g>
-    <rect x="60" y="115" width="220" height="52" rx="8" class="box"/>
-    <text x="80" y="138" class="lbl">Qoder</text>
-    <text x="80" y="156" class="sub">AI 编程与 Agent IDE</text>
+  <!-- ② Skill 入口 -->
+  <text x="330" y="90" class="col">② DocGuard Skill 入口</text>
+  <rect x="330" y="105" width="320" height="40" rx="8" class="boxg"/>
+  <text x="346" y="130" class="hl">SKILL.md · 定义 6 个 Tool</text>
+  <rect x="330" y="151" width="320" height="34" rx="8" class="box"/>
+  <text x="346" y="173" class="lbl">run.ps1 · 统一宿主入口（Host 固定）</text>
+  <rect x="330" y="193" width="155" height="42" rx="7" class="box"/><text x="344" y="214" class="lbl">analyze 文档审查</text>
+  <rect x="495" y="193" width="155" height="42" rx="7" class="box"/><text x="509" y="214" class="lbl">search 知识问答</text>
+  <rect x="330" y="241" width="155" height="42" rx="7" class="box"/><text x="344" y="262" class="lbl">report 报告生成</text>
+  <rect x="495" y="241" width="155" height="42" rx="7" class="box"/><text x="509" y="262" class="lbl">bid 投标自检</text>
+  <rect x="330" y="289" width="155" height="42" rx="7" class="box"/><text x="344" y="310" class="lbl">compare 文档对比</text>
+  <rect x="495" y="289" width="155" height="42" rx="7" class="boxr"/><text x="509" y="304" class="hlr">agent 自主编排</text><text x="509" y="320" class="sub">Agentic</text>
+  <rect x="330" y="340" width="320" height="40" rx="8" class="boxg"/>
+  <text x="346" y="365" class="hl">HTTP API · 127.0.0.1:8765</text>
+  <text x="330" y="398" class="note">⇄ 可被其它 Skill 调用 / 调用其它 Skill</text>
 
-    <rect x="60" y="180" width="220" height="52" rx="8" class="box"/>
-    <text x="80" y="203" class="lbl">WorkBuddy</text>
-    <text x="80" y="221" class="sub">生产力级 AI 助手（基线）</text>
+  <!-- ③ 本地服务 -->
+  <text x="690" y="90" class="col">③ 本地服务层（FastAPI）</text>
+  <rect x="690" y="105" width="250" height="320" rx="10" class="boxg"/>
+  <rect x="702" y="114" width="226" height="36" rx="7" class="box"/><text x="716" y="136" class="lbl">解析 / OCR</text>
+  <rect x="702" y="156" width="226" height="36" rx="7" class="box"/><text x="716" y="178" class="lbl">Embedding + FAISS</text>
+  <rect x="702" y="198" width="226" height="52" rx="7" class="boxr"/><text x="716" y="218" class="hlr">★ ReAct Orchestrator</text><text x="716" y="236" class="sub">自主多步规划·循环调用工具</text>
+  <rect x="702" y="256" width="226" height="36" rx="7" class="box"/><text x="716" y="278" class="lbl">规则引擎（兜底）</text>
+  <rect x="702" y="298" width="226" height="36" rx="7" class="box"/><text x="716" y="320" class="lbl">本地 LLM（OpenVINO）</text>
+  <rect x="702" y="340" width="226" height="36" rx="7" class="box"/><text x="716" y="362" class="lbl">报告生成</text>
+  <rect x="702" y="382" width="226" height="36" rx="7" class="boxt"/><text x="716" y="404" class="lbl">可选端云协同（默认关闭）</text>
 
-    <rect x="60" y="245" width="220" height="52" rx="8" class="box"/>
-    <text x="80" y="268" class="lbl">TRAE Work</text>
-    <text x="80" y="286" class="sub">Agent 工作流平台</text>
+  <!-- 主调用箭头 -->
+  <g stroke="#1F883D" stroke-width="2.5" marker-end="url(#arr)">
+    <line x1="290" y1="200" x2="328" y2="200"/>
+    <line x1="650" y1="360" x2="688" y2="200"/>
   </g>
-
-  <!-- ② Skill Entry -->
-  <g>
-    <rect x="340" y="115" width="260" height="44" rx="8" class="boxg"/>
-    <text x="360" y="142" class="hl">SKILL.md（Agent 规范）</text>
-
-    <rect x="340" y="172" width="260" height="40" rx="8" class="box"/>
-    <text x="360" y="198" class="lbl">analyze_document · 文档审查</text>
-
-    <rect x="340" y="222" width="260" height="40" rx="8" class="box"/>
-    <text x="360" y="248" class="lbl">search_document · 知识问答</text>
-
-    <rect x="340" y="272" width="260" height="40" rx="8" class="box"/>
-    <text x="360" y="298" class="lbl">generate_report · 报告生成</text>
-
-    <rect x="340" y="330" width="260" height="44" rx="8" class="boxg"/>
-    <text x="360" y="357" class="hl">FastAPI 服务 127.0.0.1:8765</text>
+  <text x="296" y="194" class="sub">HTTP localhost</text>
+  <text x="556" y="360" class="sub">tools → POST API</text>
+  <!-- Orchestrator 回环调度（虚线橙） -->
+  <g stroke="#EA4335" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#arr-o)">
+    <line x1="702" y1="224" x2="650" y2="318"/>
   </g>
+  <text x="600" y="262" class="note">调度工具</text>
 
-  <!-- ③ Local Server -->
-  <g>
-    <rect x="660" y="115" width="280" height="58" rx="8" class="box"/>
-    <text x="680" y="140" class="lbl">解析与理解</text>
-    <text x="680" y="160" class="sub">文档解析 · OCR（可选）</text>
+  <!-- 底部：本地模型 -->
+  <rect x="60" y="450" width="880" height="80" rx="10" class="boxg"/>
+  <text x="84" y="478" class="hl">本地模型（OpenVINO™ IR · INT4 · 支持 Intel NPU / GPU / CPU · device: AUTO 自动调度）</text>
+  <text x="84" y="502" class="sub">LLM：你配置的本地模型（示例 Qwen2.5-7B-Instruct-int4-ov，≤35B）·  Embedding：BGE-small-zh</text>
+  <text x="84" y="522" class="sub">未启用本地模型时自动降级为「确定性规则引擎 + 哈希嵌入 + FAISS」，审查 / 检索 / 报告仍真实可用。</text>
 
-    <rect x="660" y="188" width="280" height="58" rx="8" class="box"/>
-    <text x="680" y="213" class="lbl">检索 RAG</text>
-    <text x="680" y="233" class="sub">Embedding · FAISS 向量库</text>
-
-    <rect x="660" y="261" width="280" height="74" rx="8" class="boxg"/>
-    <text x="680" y="286" class="lbl">双引擎风险分析</text>
-    <text x="680" y="306" class="sub">规则引擎（确定性·可独立）</text>
-    <text x="680" y="322" class="sub">本地 LLM（OpenVINO · 增强）</text>
-
-    <rect x="660" y="350" width="280" height="48" rx="8" class="box"/>
-    <text x="680" y="374" class="lbl">报告生成</text>
-    <text x="680" y="392" class="sub">Markdown / HTML / JSON</text>
-  </g>
-
-  <!-- Arrows -->
-  <g stroke="#1F883D" stroke-width="2.5" marker-end="url(#arr-arch)">
-    <line x1="280" y1="265" x2="338" y2="265"/>
-    <line x1="600" y1="352" x2="658" y2="280"/>
-  </g>
-  <text x="288" y="258" class="sub">HTTP localhost</text>
-  <text x="610" y="268" class="sub">127.0.0.1:8765</text>
-
-  <!-- Bottom: local models -->
-  <rect x="60" y="450" width="880" height="90" rx="10" class="boxg"/>
-  <text x="84" y="480" class="hl">本地模型（OpenVINO™ IR · INT4）</text>
-  <text x="84" y="506" class="sub">LLM：你配置的本地模型（示例：Qwen2.5-7B-Instruct-int4-ov，≤35B）·  Embedding：BGE-small-zh</text>
-  <text x="84" y="526" class="sub">未启用本地模型时自动降级为「确定性规则引擎 + 哈希嵌入 + FAISS」，审查/检索/报告仍真实可用。</text>
-
-  <!-- Bottom: security -->
-  <rect x="60" y="560" width="880" height="110" rx="10" fill="#1F2328"/>
-  <text x="84" y="592" class="bantxt">安全边界 · 企业敏感数据不出机</text>
-  <text x="84" y="618" class="banitem">• 服务仅绑定 127.0.0.1，不上公网；模型、向量、文件全部在 localhost 运行</text>
-  <text x="84" y="640" class="banitem">• 日志对手机号 / 身份证 / 邮箱 / 银行卡号自动脱敏</text>
-  <text x="84" y="662" class="banitem">• 用户文件按 user_id 隔离；云端模型受 security.local_only 总闸强制约束</text>
+  <!-- 底部：安全 -->
+  <rect x="60" y="545" width="880" height="120" rx="10" fill="#1F2328"/>
+  <text x="84" y="577" class="bantxt">安全边界 · 企业敏感数据不出机</text>
+  <text x="84" y="603" class="banitem">• 服务仅绑定 127.0.0.1，不上公网；模型、向量、文件全部在 localhost 运行</text>
+  <text x="84" y="625" class="banitem">• 日志对手机号 / 身份证 / 邮箱 / 银行卡号自动脱敏；用户文件按 user_id 隔离</text>
+  <text x="84" y="647" class="banitem">• 云端增强受 security.local_only 总闸强制约束：默认 true（纯本地）；设为 false + cloud.enabled 才可选开启，原文件字节永不出机</text>
 </svg>

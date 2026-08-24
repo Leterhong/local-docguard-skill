@@ -1,6 +1,6 @@
 # DocGuard AI — 企业文档智能审查 Agent Skill
 
-> 运行在 AI PC 上的企业文档智能审查助手：本地优先，端云协同，数据可控。
+> 运行在 AI PC 上的企业文档智能审查助手：本地优先，**Agentic 自主编排**，端云协同可选，数据可控。
 
 DocGuard AI 是一个面向生产力级 AI Agent（Qoder / WorkBuddy / TRAE Work）的本地 Skill，
 通过 **OCR + RAG + 文档理解 + 风险分析 + 报告生成** 流水线，为企业法务、采购、技术、项目、咨询人员
@@ -8,15 +8,20 @@ DocGuard AI 是一个面向生产力级 AI Agent（Qoder / WorkBuddy / TRAE Work
 底层由 **OpenVINO™** 优化本地推理，支持 Intel **CPU / GPU / NPU**；必要时可显式启用**端云协同**（OpenAI 兼容接口），
 仅上传脱敏后的文本摘要/检索片段，**原始文件字节永不出机**。
 
+区别于普通 Skill，DocGuard 还内置 **ReAct Orchestrator（Agentic 模式）**：给定文档与一个或多个目标，
+由本地 LLM 自主规划「先审什么、再审什么、要不要比对/自检/问答」，循环调用同一组工具直至得出结论；
+模型不可用时自动回退确定性管线，始终产出完整结果。Skill 同时具备**双向互操作**能力——对外暴露 6 个独立 CLI 工具
+与本地 HTTP API，可被任何其它 Skill / Agent 调用；对内编排器组合的就是这同一组工具入口。
+
 ---
 
 ## 目录速览
 
 - **[运行必需](#file-checklist)**：`SKILL.md` · `info.json` · `meta.json` · `model_config.yaml` · `requirements.txt`
-- **[核心代码](#architecture)**：`scripts/`（宿主入口 `run.ps1`、模型转换、基准、契约入口 `client.py`/`server.py`）· `tools/`（Agent 调用入口）· `server/`（FastAPI 本地服务）
+- **[核心代码](#architecture)**：`scripts/`（宿主入口 `run.ps1`、模型转换、基准、契约入口 `client.py`/`server.py`）· `tools/`（6 个 Agent 调用入口）· `server/`（FastAPI 本地服务 + ReAct 编排器）
 - **[样例与示例](#quickstart)**：`examples/`（合同/招标/技术方案样例 + `demo_client.py` 最小客户端示例）
 - **[文档配图](#screenshots)**：`assets/`（SVG 架构图 + 真实运行截图）
-- **[测试](#tests)**：`tests/`
+- **[测试](#tests)**：`tests/`（含 ReAct 编排器确定性测试 `test_agent.py`）
 - **[开发验证脚本](#project-structure)**：`verify_e2e.py` / `verify_pdf.py` 统一置于 `scripts/` 下，不在根目录平铺。
 
 ---
@@ -30,6 +35,7 @@ DocGuard AI 是一个面向生产力级 AI Agent（Qoder / WorkBuddy / TRAE Work
 | **技术方案审查** | 技术方案 / PRD | 架构缺陷 · 安全问题 · 性能风险 · 章节完整性 |
 | **企业知识问答（RAG）** | 自然语言问题 | 基于文档检索增强的回答 + 引用来源 |
 | **文档对比** | 两个版本文档 | 差异分析（新增/删除/修改/未变） |
+| **自主多步审查（Agentic）** | 文档 + 目标（如「判断我方是否应投标」） | 编排器自主串联上述能力，输出最终结论 + 完整步骤 trace + 各步 artifacts |
 
 所有按钮、所有接口均对接真实后端逻辑，**无空页面、无假数据、无模拟 AI 输出**。
 
@@ -40,8 +46,9 @@ DocGuard AI 是一个面向生产力级 AI Agent（Qoder / WorkBuddy / TRAE Work
 - **本地优先**：默认只使用 localhost，断网可用；模型、向量、文件全部留在本机。
 - **双引擎兜底**：规则引擎可独立于大模型产出完整审查报告；本地 LLM 在线时进行增强，结论仍带规则证据可复核。
 - **真·端侧推理**：通过 OpenVINO 子进程加载你自行准备的本地模型（示例：Qwen2.5-7B-Instruct-int4-ov，≤35B 均可），`do_sample=False`，确定性高。
+- **Agentic 自主编排**：内置 ReAct Orchestrator，一句话目标即可自主多步审查，无需手工逐步调用；模型缺失时确定性回退。
 - **安全边界**：服务仅绑定 `127.0.0.1`，日志自动脱敏，用户目录隔离；`security.local_only` 作为总闸禁止任何云端绕过。
-- **生产力级入口**：SKILL.md 已定义三个 Tool，Qoder / WorkBuddy / TRAE Work 可直接调用。
+- **生产力级入口**：SKILL.md 已定义**六个 Tool**（analyze / search / report / bid / compare / agent），Qoder / WorkBuddy / TRAE Work 可直接调用，且具备双向互操作。
 
 ---
 
@@ -51,11 +58,14 @@ DocGuard AI 是一个面向生产力级 AI Agent（Qoder / WorkBuddy / TRAE Work
 
 ![DocGuard AI 系统架构](assets/architecture.svg)
 
-上图展示了 DocGuard 的三层结构：
+上图展示了 DocGuard 的三层结构与升级后的 Agentic 能力：
 
-1. **生产力级 Agent**：Qoder、WorkBuddy、TRAE Work 通过 SKILL.md 定义的 Tool 调用 Skill。
-2. **Skill 入口**：`tools/` 目录下的 `analyze_document`、`search_document`、`generate_report`，统一转发到本地 FastAPI 服务。
-3. **本地服务层**：`server/` 运行在 `127.0.0.1:8765`，包含文档解析/OCR、Embedding/FAISS、规则引擎/本地 LLM、报告生成四大服务模块。
+1. **生产力级 Agent 宿主**：Qoder、WorkBuddy、TRAE Work 通过 SKILL.md 定义的 Tool 调用 Skill；
+   同时任何外部 Skills 也能直接调用本 Skill 的 CLI / HTTP API（双向互操作）。
+2. **Skill 入口**：`SKILL.md` 定义 **6 个 Tool**（analyze / search / report / bid / compare / agent），
+   统一经 `run.ps1` 宿主入口转发；对外暴露 6 个独立 CLI 工具与本地 HTTP API（127.0.0.1:8765）。
+3. **本地服务层**：`server/` 运行在 `127.0.0.1:8765`，包含文档解析/OCR、Embedding/FAISS、规则引擎、本地 LLM、报告生成，
+   以及升级新增的 **★ ReAct Orchestrator**（自主多步规划、循环调度上述工具）；可选**端云协同**（默认关闭，仅脱敏文本摘要级别）。
 
 ---
 
@@ -65,6 +75,7 @@ DocGuard AI 是一个面向生产力级 AI Agent（Qoder / WorkBuddy / TRAE Work
 
 完整链路在 localhost 执行：上传 → 解析/OCR → 切片 → 嵌入 → FAISS 检索 → 规则审查 → 本地 LLM 增强 → 结构化报告。
 Agent 调用路径：`tools/analyze_document.py` → `POST 127.0.0.1:8765/api/analyze` → 返回 `document_analysis` JSON。
+当目标需要多步时，可由 `agent_run.py`（ReAct Orchestrator）在最上层统一编排，自动串联 analyze / bid / compare / search 等子能力。
 
 ---
 
@@ -78,7 +89,42 @@ Agent 调用路径：`tools/analyze_document.py` → `POST 127.0.0.1:8765/api/an
 
 ---
 
-## 六、技术栈
+## 六、Agentic 自主编排（ReAct Orchestrator）
+
+DocGuard 区别于「单步工具集合」的关键能力：给定文档与一个或多个自然语言目标，由 **ReAct Orchestrator**
+自主决定审查路径，而非要求用户手工逐步调用每个工具。
+
+**工作模式**
+
+- **LLM 规划模式**（本地模型可用）：模型以 ReAct 范式循环（`thought → action → observation`），
+  自行判断先调 `analyze` 还是先做 `bid` 自检、要不要 `compare` 两版、是否用 `search` 追问细节；
+  读到中间结果后再规划下一步，直到可 `finish` 输出最终结论。
+- **确定性回退模式**（本地模型不可用 / 连续 3 步工具失败）：按文档类型与输入自动串联——
+  招标书 + 企业资质 → 投标自检；双文档 + 问题 → 对比 + RAG 问答；其余 → 直接分析。始终产出正确结果，绝不空转。
+
+**双向互操作（比赛要求的能力）**
+
+- **被其它 Skills 调用**：对外提供 6 个独立 CLI 工具（`tools/*.py`）与本地 HTTP API（`127.0.0.1:8765`），
+  任何其它 Skill / Agent 可直接调用，无需感知内部实现。
+- **调用其它 Skills**：编排器内部组合的就是这同一组工具入口；若未来扩展 `tools/` 接入外部 Skill，
+  编排器即可在规划循环中调度它们，形成 Skill 间的协作链路。
+
+**可审计的执行证据**
+
+每次 `agent_run` 返回完整 `steps[]`：每步的 `thought`（思考）、`action`（调用的工具）、`args`、`observation`（观察结果）、`duration_s`，
+以及 `artifacts`（各工具产出的结构化结果）与 `planner` / `llm_used` 字段——构成端到端 Agentic 执行证据链。
+
+```bash
+# 投标前让编排器判断「我方是否应投标」
+python tools/agent_run.py --file 招标书.docx --profile "注册资本5000万，ISO9001，3个高校项目" --goal "判断我方是否应投标"
+
+# 两版合同 + 一个问题，让编排器对比并回答
+python tools/agent_run.py --file v1.docx --file v2.docx --question "新付款条件是什么" --goal "对比重大变化"
+```
+
+---
+
+## 七、技术栈
 
 | 层 | 选型 |
 |---|---|
@@ -86,15 +132,16 @@ Agent 调用路径：`tools/analyze_document.py` → `POST 127.0.0.1:8765/api/an
 | 本地 LLM | 你准备的 ≤35B OpenVINO INT4 模型（示例：Qwen2.5-7B-Instruct-int4-ov） · OpenVINO™ Runtime |
 | Embedding | BGE-small-zh-v1.5 / all-MiniLM-L6-v2（OpenVINO 优化） |
 | 向量库 | FAISS |
+| 编排 | ReAct Orchestrator（LLM 规划 + 确定性回退） |
 | OCR | PaddleOCR（可选，自动降级） |
 | 文档解析 | PDF / DOCX / TXT / Markdown / HTML |
-| Agent 规范 | SKILL.md（Tools 定义） |
+| Agent 规范 | SKILL.md（6 个 Tools 定义） |
 
 ---
 
 <a name="quickstart"></a>
 
-## 七、快速开始
+## 八、快速开始
 
 ### 1. 安装依赖
 
@@ -118,9 +165,9 @@ python -m server.main
 uvicorn server.main:app --host 127.0.0.1 --port 8765
 ```
 
-本地服务启动后仅对外暴露 JSON API（见第十节 API 一览），由 Agent 通过 `tools/` 直接调用，无需图形界面。
+本地服务启动后仅对外暴露 JSON API（见第十一节 API 一览），由 Agent 通过 `tools/` 直接调用，无需图形界面。
 
-### 3. 通过 Agent 调用（三个 Tool）
+### 3. 通过 Agent 调用（六个 Tool）
 
 ```bash
 # 1) 审查文档
@@ -131,7 +178,18 @@ python tools/search_document.py --query "这个合同付款周期是多少？" -
 
 # 3) 生成报告
 python tools/generate_report.py --doc-id <id> --format html
+
+# 4) 投标资格自检
+python tools/check_bid.py --tender 招标书.docx --profile-text "注册资本5000万，ISO9001"
+
+# 5) 文档版本对比
+python tools/compare_documents.py --old contract_v1.docx --new contract_v2.docx
+
+# 6) 自主多步编排（Agentic）
+python tools/agent_run.py --file 招标书.docx --profile "注册资本5000万，ISO9001" --goal "判断我方是否应投标"
 ```
+
+所有工具均支持 `--no-llm`（仅规则引擎）参数；`analyze_document` / `search_document` 另支持 `--cloud`（需先配置端云协同）。
 
 ### 4. 通过 examples/demo_client.py 直接调用（开发者示例）
 
@@ -147,27 +205,28 @@ python examples/demo_client.py
 
 ---
 
-## 八、前端说明
+## 九、前端说明
 
 DocGuard 是面向 Agent（Qoder / WorkBuddy / TRAE Work）的生产力级 Skill，核心交互通过
-`tools/` 下的三个 Tool（analyze / search / report）完成，**不捆绑任何图形界面**。
-本地服务仅对外暴露 JSON API（见第十节 API 一览），由 Agent 直接调用，确保「纯本地、文档不出机」。
+`tools/` 下的**六个 Tool**（analyze / search / report / bid / compare / agent）完成，**不捆绑任何图形界面**。
+本地服务仅对外暴露 JSON API（见第十一节 API 一览），由 Agent 直接调用，确保「纯本地、文档不出机」。
 
 ---
 
 <a name="screenshots"></a>
 
-## 九、真实 API 运行截图
+## 十、真实 API 运行截图（升级后仍有效）
 
-以下两张截图来自本机真实运行，非构造数据。
+> 以下两张截图来自本机**真实运行**（非构造数据）。升级后 `/api/providers` 与 `/api/analyze`
+> 两个接口与返回结构均未变化，截图仍是本地模型在线、`llm_used=true` 的**真机推理证据**。
 
-### 9.1 `/api/providers` — 本地推理后端在线
+### 10.1 `/api/providers` — 本地推理后端在线
 
 ![API providers 返回](assets/api_providers.png)
 
 > 返回显示 `backend: openvino-genai`，`available: true`，`active: true`，`local_only: true`，证明本地大模型后端真实在线。
 
-### 9.2 `/api/analyze` — 本地 LLM 真实参与审查
+### 10.2 `/api/analyze` — 本地 LLM 真实参与审查
 
 ![API analyze 返回](assets/api_analyze.png)
 
@@ -175,7 +234,9 @@ DocGuard 是面向 Agent（Qoder / WorkBuddy / TRAE Work）的生产力级 Skill
 
 ---
 
-## 十、API 一览
+<a name="api-list"></a>
+
+## 十一、API 一览
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
@@ -188,12 +249,13 @@ DocGuard 是面向 Agent（Qoder / WorkBuddy / TRAE Work）的生产力级 Skill
 | POST | `/api/report` | 生成报告（md/html/json），返回 `download_url` |
 | GET | `/api/report/{id}/download` | 下载报告文件 |
 | POST | `/api/compare` | 双文档差异分析 |
+| POST | `/api/agent/run` | 自主多步编排（ReAct），返回 `steps[]` + 结论 + artifacts |
 | GET | `/api/health` | 健康/模型状态 |
 | GET | `/api/providers` | 查看本地/云端 provider 状态 |
 
 ---
 
-## 十一、模型管理（不写死、不自动下载）
+## 十二、模型管理（不写死、不自动下载）
 
 > **重要**：DocGuard **不会自动下载任何模型**。下列 `name` 仅为示例值；`path` 为相对本 skill 根目录的路径。
 > 请自行准备任意 ≤35B 的 OpenVINO INT4 模型（或用 `scripts/convert_model.py` 从 HuggingFace 转换），
@@ -206,17 +268,18 @@ model:
   name: Qwen2.5-7B-Instruct-int4-ov          # 示例：可替换为任意 ≤35B OpenVINO INT4 模型
   path: ".openvino/models/Qwen2.5-7B-Instruct-int4-ov"   # 相对本 skill 根目录
   runtime: openvino
-  device: CPU                 # CPU / GPU / NPU / AUTO
+  device: AUTO                 # CPU / GPU / NPU / AUTO
 
 embedding:
   name: BAAI/bge-small-zh-v1.5               # 示例：可替换为任意本地 embedding 模型
   path: ".openvino/models/bge-small-zh-v1.5" # 相对本 skill 根目录
-  device: CPU
+  device: AUTO
 ```
 
 ### 启用本地大模型（OpenVINO 子进程）
 
-本地 LLM 通过子进程调用**装有 `openvino-genai` 的 Python** 运行，需在 `model_config.yaml` 指定该解释器（绝对路径）：
+本地 LLM 通过子进程调用**装有 `openvino-genai` 的 Python** 运行，需在 `model_config.yaml` 指定该解释器（绝对路径）。
+环境变量 `DOCGUARD_OPENVINO_PYTHON` **优先于**配置文件中的 `python` 字段，便于临时切换而不改配置：
 
 ```yaml
 providers:
@@ -236,7 +299,7 @@ $env:DOCGUARD_OPENVINO_PYTHON="C:/path/to/your/venv/Scripts/python.exe"
 
 ---
 
-## 十二、OpenVINO 优化
+## 十三、OpenVINO 优化
 
 ### 模型转换流程
 
@@ -268,7 +331,7 @@ python scripts/benchmark.py --device NPU
 
 ---
 
-## 十三、端云协同（可选）
+## 十四、端云协同（可选）
 
 默认情况下 DocGuard 是严格本地模式。若本地硬件无法承载大模型，或需要更强的 LLM 进行摘要/问答增强，
 可显式开启**端云协同**：文档解析、文本切片、Embedding、RAG 检索、规则审查仍在本地完成，
@@ -298,7 +361,7 @@ $env:DOCGUARD_CLOUD_API_KEY="sk-xxx"
 ```
 
 3. 使用方式：
-   - **Agent 工具**：`python tools/analyze_document.py --file examples/contract_sample.txt --cloud`。
+   - **Agent 工具**：`python tools/analyze_document.py --file examples/contract_sample.txt --cloud`（或 `search_document.py --cloud`）。
    - **API**：`POST /api/analyze` 请求体中设置 `"use_cloud": true`。
 
 ### 安全原则
@@ -309,11 +372,11 @@ $env:DOCGUARD_CLOUD_API_KEY="sk-xxx"
 
 ---
 
-## 十四、安全设计
+## 十五、安全设计
 
 1. **数据不出机**：服务仅绑定 `127.0.0.1`，不暴露公网；云端模式下原文件仍不上传。
 2. **本地优先**：默认模型本地运行，无云端回退，断网可用。
-3. **强制开关**：`security.local_only` 作为总闸，禁止任何绕过。
+3. **强制开关**：`security.local_only` 作为总闸，禁止任何绕过；双向互操作中凡涉及外部调用的入口同样受此约束。
 4. **日志脱敏**：手机号、身份证、邮箱、银行卡号在日志中自动掩码。
 5. **文件隔离**：按 `user_id` 隔离上传/向量/报告目录，互不越权。
 
@@ -321,10 +384,10 @@ $env:DOCGUARD_CLOUD_API_KEY="sk-xxx"
 
 <a name="tests"></a>
 
-## 十五、测试
+## 十六、测试
 
 ```bash
-# API / Skill 调用测试
+# API / Skill 调用测试（含 ReAct 编排器确定性链路 test_agent.py）
 python -m pytest tests/ -q
 
 # RAG 准确率（基于 examples 的问答对）
@@ -341,11 +404,11 @@ python tools/analyze_document.py --file examples/contract_sample.txt
 <a name="file-checklist"></a>
 <a name="project-structure"></a>
 
-## 十六、项目结构
+## 十七、项目结构
 
 ```
 local-docguard/
-├── SKILL.md                 # Agent Skill 定义（name/description/Tools）
+├── SKILL.md                 # Agent Skill 定义（name/description/6 个 Tools）
 ├── README.md                # 本文档
 ├── info.json                # 运行时配置（venv、内存、模型清单）
 ├── meta.json                # Skill 商店元数据
@@ -360,22 +423,28 @@ local-docguard/
 ├── server/                  # FastAPI 本地服务
 │   ├── main.py              # 服务入口（FastAPI，JSON API）
 │   ├── config.py
-│   ├── api/                 # analyze / search / report / compare / health
+│   ├── api/                 # analyze / search / report / compare / agent / health / providers
 │   ├── models/              # Pydantic schemas
-│   └── services/            # ocr / parser / embedding / vector / llm / rules / engine
-├── tools/                   # Agent 调用入口（analyze/search/report）
+│   └── services/            # ocr / parser / embedding / vector / llm / rules / engine / orchestrator(ReAct)
+├── tools/                   # 6 个 Agent 调用入口
+│   ├── analyze_document.py  # Tool 1：文档审查
+│   ├── search_document.py   # Tool 2：知识问答（RAG）
+│   ├── generate_report.py   # Tool 3：报告生成
+│   ├── check_bid.py         # Tool 4：投标资格自检
+│   ├── compare_documents.py # Tool 5：文档版本对比
+│   └── agent_run.py         # Tool 6：自主多步编排（Agentic / ReAct）
 ├── assets/                  # README 配图（SVG 架构图 + 真实运行截图）
 ├── examples/                # 样例文档 + 开发者示例
 │   ├── contract_sample.txt  # 合同样例
 │   ├── tender_sample.md     # 招标样例
 │   ├── tech_sample.md       # 技术方案样例
 │   └── demo_client.py       # 最小 HTTP 客户端示例
-├── tests/                   # 测试用例
+├── tests/                   # 测试用例（含 test_agent.py 编排器确定性测试）
 └── data/                    # uploads / reports / vectordb（运行时生成）
 ```
 
 ---
 
-## 十七、许可证
+## 十八、许可证
 
 MIT —— 可自由用于企业内网与生产力场景。
