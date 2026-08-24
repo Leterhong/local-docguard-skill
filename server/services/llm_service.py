@@ -189,7 +189,12 @@ class LLMService:
         communicate via a JSONL line protocol. This keeps the model 100% local.
         """
         local_cfg = self._providers_cfg.get("local", {})
-        python_exe = local_cfg.get("python", "").strip() or os.environ.get("DOCGUARD_OPENVINO_PYTHON", "").strip()
+        # Env var overrides the shipped config so operators can point to a
+        # different openvino-genai runtime without editing model_config.yaml.
+        # Falls back to the configured python when the env var is unset/empty.
+        env_python = os.environ.get("DOCGUARD_OPENVINO_PYTHON", "").strip()
+        cfg_python = local_cfg.get("python", "").strip()
+        python_exe = env_python or cfg_python
         if not python_exe or not os.path.isfile(python_exe):
             logger.info("OpenVINO GenAI backend skipped: providers.local.python not set/invalid")
             return False

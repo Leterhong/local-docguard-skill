@@ -134,6 +134,7 @@ class Orchestrator:
         ctx = {
             "goal": goal, "file_paths": file_paths, "question": question,
             "profile_text": profile_text, "doc_type_hint": doc_type_hint,
+            "use_llm": use_llm,
             "doc_ids": {}, "last_analysis": None, "artifacts": {},
         }
         steps: List[AgentTrace] = []
@@ -408,7 +409,7 @@ class Orchestrator:
         result = self.container.engine.analyze(
             path,
             doc_type_hint=hint,
-            use_llm=True,
+            use_llm=ctx.get("use_llm", True),
         )
         # Register the analysis in the API-level cache so later steps
         # (bid check, RAG search) can reference it by document_id, exactly

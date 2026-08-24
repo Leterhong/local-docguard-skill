@@ -36,11 +36,14 @@ model:
     device: "CPU"
 
 # ----------------------------------------------------------------------
-# Providers: local (default) vs cloud (optional, disabled by default).
-# 切换 provider 仅可通过 Agent 工具参数 `use_cloud=true`（演示前端 web/ 已移除）。
-# 注意：以下 cloud 段仅为「扩展样例」，并非默认能力。赛事硬性要求纯本地，
-# 该 cloud 段默认被下方 security.local_only=true 锁死（即便 cloud.enabled=true，
-# 只要 local_only=true，云端提供方即被屏蔽），文档与原始文件永不离开本机。
+# Providers: local(默认) vs cloud(可选，混合智能 Hybrid-Intelligence 就绪)。
+#
+# 设计遵循决赛指南「混合智能」架构：
+#   - 默认 security.local_only=true —— 敏感文档/原始文件 100% 本地闭环，符合赛事端侧硬性要求；
+#   - 如需「通用知识云端增强 + 弱网优雅降级」：将下方 security.local_only 设为
+#     false 且 cloud.enabled=true 并配置 api_key_env，即可启用可选云端增强；
+#   - 云端不可用(弱网/未配置)时自动回退本地规则引擎，核心功能不中断。
+# 切换 provider 也可通过 Agent 工具参数 use_cloud=true（仅当 local_only=false 时生效）。
 # ----------------------------------------------------------------------
 providers:
   local:
@@ -104,8 +107,9 @@ server:
     - "null"
 
 security:
-  # Files never leave this machine. When true, cloud providers are blocked
-  # regardless of user/UI selection, ensuring a strict local-only posture.
+  # 端侧硬性开关：true=纯本地(文档永不离开本机，赛事合规默认值)；
+  # 设为 false 可启用「混合智能」——本地模型处理敏感内容，通用知识走云端增强，
+  # 且云端不可用时自动降级本地规则引擎(需同步将 providers.cloud.enabled 设为 true)。
   local_only: true
   # Redact these patterns from logs.
   log_redactions:
