@@ -11,6 +11,9 @@ Usage (also reachable via `scripts/run.ps1 <action>`):
     python scripts/client.py analyze --file 合同.pdf [--type contract]
     python scripts/client.py search  --query 付款周期 [--doc-id <id>]
     python scripts/client.py report  --doc-id <id> --format markdown
+    python scripts/client.py bid     --tender 招标书.docx --profile-text "..."
+    python scripts/client.py compare --old v1.docx --new v2.docx
+    python scripts/client.py agent   --file 合同.pdf --goal "全面审查"
 """
 from __future__ import annotations
 
@@ -30,6 +33,9 @@ TOOLS = {
     "analyze": "tools/analyze_document.py",
     "search": "tools/search_document.py",
     "report": "tools/generate_report.py",
+    "bid": "tools/check_bid.py",
+    "compare": "tools/compare_documents.py",
+    "agent": "tools/agent_run.py",
 }
 
 
@@ -67,10 +73,13 @@ log = _setup_logging("client-py")
 
 
 def _usage() -> None:
-    print("DocGuard AI 用法: client.py <analyze|search|report> [参数]")
+    print("DocGuard AI 用法: client.py <analyze|search|report|bid|compare|agent> [参数]")
     print("  审查文档 : client.py analyze --file 合同.pdf [--type contract] [--no-llm]")
     print("  知识问答 : client.py search  --query 付款周期 [--doc-id <id>]")
     print("  生成报告 : client.py report  --doc-id <id> --format markdown")
+    print("  招标自检 : client.py bid     --tender 招标书.docx --profile-text '资质描述'")
+    print("  版本对比 : client.py compare --old v1.docx --new v2.docx")
+    print("  自主编排 : client.py agent   --file 合同.pdf --goal '全面审查这份合同'")
     print("  启动服务 : 请使用 scripts/server.py 或 run.ps1 serve")
 
 

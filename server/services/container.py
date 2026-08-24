@@ -24,7 +24,10 @@ logger = get_logger("container")
 class ServiceContainer:
     def __init__(self, settings: Optional[Settings] = None):
         self.settings = settings or get_settings()
-        self._lock = threading.Lock()
+        # RLock: lazy properties can nest (e.g. `engine` takes the lock and
+        # then accesses `self.ocr`, which takes it again). A plain Lock
+        # deadlocks on that same-thread re-entry; RLock allows it.
+        self._lock = threading.RLock()
         self._ocr: Optional[OcrService] = None
         self._embedder: Optional[EmbeddingService] = None
         self._llm: Optional[LLMService] = None

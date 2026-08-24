@@ -32,5 +32,6 @@ if (-not (Test-Path $venvPy)) {
 # 3) 运行无模型可过的端到端子集
 #    test_rules.py : 纯规则引擎确定性测试（合同/招标/技术方案样例）
 #    test_api.py   : FastAPI TestClient 集成测试（use_llm=False 降级）
-& $py -m pytest tests/test_rules.py tests/test_api.py -q
+#    test_agent.py : 编排器多步链路测试（确定性规划器，无需模型）
+& $py -m pytest tests/test_rules.py tests/test_api.py tests/test_agent.py -q
 exit $LASTEXITCODE
