@@ -130,6 +130,10 @@ def resolve_input_file(
             s.samples_dir.resolve(),
             # The project data root itself (covers shared samples).
             (s.project_root / "data").resolve(),
+            # The project's own bundled example documents (used by demos,
+            # docs and tests) are trusted project resources, not arbitrary
+            # user-supplied system files, so they are safe to analyze.
+            (s.project_root / "examples").resolve(),
         ]
         if not any(_is_relative_to(p, root) for root in allowed_roots):
             raise PermissionError(

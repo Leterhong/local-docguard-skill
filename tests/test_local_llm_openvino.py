@@ -17,6 +17,9 @@ for _s in (sys.stdout, sys.stderr):
     if hasattr(_s, "reconfigure"):
         _s.reconfigure(encoding="utf-8")
 
+import pytest
+
+pytest.importorskip("openvino_genai")
 import openvino_genai as ov_genai
 
 ROOT = Path(__file__).resolve().parent.parent

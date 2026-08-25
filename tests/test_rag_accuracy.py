@@ -1,8 +1,11 @@
 """
 DocGuard AI — RAG retrieval accuracy test.
 
-Validates that the local Embedding + FAISS pipeline returns the correct
-source chunk for a question grounded in the sample documents.
+Validates that the local Embedding + FAISS pipeline returns results for
+questions grounded in the sample documents. The embedding service falls
+back to a deterministic hashing embedding when no model is installed, so
+the test asserts retrieval returns hits (the RAG plumbing works end to
+end) rather than depending on a specific semantic model being available.
 
 Run:
     python -m pytest tests/test_rag_accuracy.py -q
@@ -20,8 +23,9 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
+from server.config import get_settings  # noqa: E402
 from server.services.chunker import chunk_text  # noqa: E402
-from server.services.vector_store import VectorStore  # noqa: E402
+from server.services.vector_store import VectorStore, ChunkRecord  # noqa: E402
 from server.services.embedding_service import EmbeddingService  # noqa: E402
 
 CASES = [
@@ -32,15 +36,26 @@ CASES = [
 
 
 def test_retrieval_hits_grounded_chunk():
-    embedder = EmbeddingService()  # falls back to hash/local if no model
-    store = VectorStore(dimension=embedder.dimension)
-    for fname, query, _ in CASES:
+    settings = get_settings()
+    embedder = EmbeddingService(settings)  # resilient hashing fallback if no model
+    for i, (fname, query, _keyword) in enumerate(CASES):
         text = open(os.path.join(ROOT, fname), encoding="utf-8").read()
         chunks = chunk_text(text)
-        vecs = embedder.embed([c.text for c in chunks])
-        store.clear()
-        store.add([c.chunk_id for c in chunks], vecs, [c.to_meta() for c in chunks])
-        qv = embedder.embed([query])[0]
+        assert chunks, f"文档应切分为至少一个分块：{fname}"
+        vecs = embedder.encode([c.text for c in chunks])
+        records = [
+            ChunkRecord(
+                chunk_id=c.chunk_id,
+                document_id=f"case_{i}",
+                file_name=fname,
+                text=c.text,
+            )
+            for c in chunks
+        ]
+        # Isolated namespace per case so documents don't bleed into each other.
+        store = VectorStore(settings, namespace=f"ragtest_{i}")
+        store.add(records, vecs, persist=False)
+        qv = embedder.encode([query])[0]
         hits = store.search(qv, top_k=3)
         assert len(hits) > 0, f"检索应返回结果：{query}"
     print("RAG retrieval accuracy test passed.")

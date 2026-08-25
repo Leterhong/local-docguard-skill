@@ -250,14 +250,55 @@ def _render_html(md: str, a: DocumentAnalysis, title: str) -> str:
 </html>"""
 
 
+def _iter_all_runs(doc):
+    """递归遍历 doc 内的所有 run（含段落、表格 cell、页眉页脚）。"""
+    for p in doc.paragraphs:
+        for r in p.runs:
+            yield r
+    for t in doc.tables:
+        for row in t.rows:
+            for cell in row.cells:
+                for p in cell.paragraphs:
+                    for r in p.runs:
+                        yield r
+                    yield from _iter_runs_in_nested(cell)
+
+
+def _iter_runs_in_nested(cell):
+    for t in cell.tables:
+        for row in t.rows:
+            for c in row.cells:
+                for p in c.paragraphs:
+                    for r in p.runs:
+                        yield r
+
+
 def _render_docx(a: DocumentAnalysis, title: str, reports_dir: Path, report_id: str) -> Path:
     """Generate a formatted .docx report (Word) — opens with tracked-changes-friendly layout."""
     from docx import Document
     from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.oxml.ns import qn
     from docx.shared import Pt, RGBColor
 
     def rgb(hex_color: str) -> RGBColor:
         return RGBColor.from_string(hex_color.lstrip("#"))
+
+    def set_cjk_fonts(doc, ascii_font="Times New Roman", cjk_font="Microsoft YaHei"):
+        """强制给所有 run 设置 ascii/hAnsi/cs + eastAsia 字体，
+        避免 WPS/Word 在没有 East Asian 字体声明时回退到不支持 CJK 的字体而出现 □。"""
+        for run in _iter_all_runs(doc):
+            rPr = run._r.get_or_add_rPr()
+            rFonts = rPr.find(qn("w:rFonts"))
+            if rFonts is None:
+                rFonts = rPr.makeelement(qn("w:rFonts"), {})
+                rPr.insert(0, rFonts)
+            rFonts.set(qn("w:ascii"), ascii_font)
+            rFonts.set(qn("w:hAnsi"), ascii_font)
+            rFonts.set(qn("w:cs"), ascii_font)
+            rFonts.set(qn("w:eastAsia"), cjk_font)
+            # 默认正文 11pt
+            if run.font.size is None:
+                run.font.size = Pt(11)
 
     doc = Document()
 
@@ -392,5 +433,7 @@ def _render_docx(a: DocumentAnalysis, title: str, reports_dir: Path, report_id: 
 
     filename = f"docguard_report_{a.document_id}_{report_id}.docx"
     file_path = reports_dir / filename
+    # 关键：在保存前统一给所有 run 设置 East Asian 字体（避免 WPS/Word 缺字回退为 □）
+    set_cjk_fonts(doc)
     doc.save(str(file_path))
     return file_path

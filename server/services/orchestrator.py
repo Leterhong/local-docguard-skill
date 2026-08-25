@@ -21,6 +21,7 @@ from __future__ import annotations
 import json
 import time
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
 from server.models.schemas import DocumentType
@@ -394,6 +395,27 @@ class Orchestrator:
             files = ctx.get("file_paths") or []
             if len(files) == 1:
                 path = files[0]
+        # Robustness: the LLM planner sometimes re-emits a truncated or
+        # hallucinated file_path (e.g. "07a4b222_sample.txt" when the real
+        # upload is "07a4b224_sample.txt"). When the literal path does not
+        # exist, resolve against the originally uploaded file_paths so the
+        # run still succeeds.
+        if path and not Path(path).expanduser().resolve().exists():
+            candidates = ctx.get("file_paths") or []
+            by_base = {Path(p).name: p for p in candidates}
+            base = Path(path).name
+            if base in by_base:
+                path = by_base[base]
+            else:
+                # Fuzzy fallback: match on the non-hash suffix of the
+                # filename (strip the "<hex>_" upload prefix) or, when a
+                # single candidate exists, prefer it outright.
+                suffix = base.split("_", 1)[1] if "_" in base else base
+                matches = [p for p in candidates if Path(p).name.endswith(suffix)]
+                if len(matches) == 1:
+                    path = matches[0]
+                elif len(candidates) == 1:
+                    path = candidates[0]
         if not path:
             raise ValueError("analyze_document 需要 file_path")
         # engine.analyze expects a DocumentType enum (or None), but the LLM

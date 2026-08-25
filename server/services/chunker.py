@@ -25,6 +25,17 @@ class Chunk:
     char_start: int = 0
     char_end: int = 0
 
+    def to_meta(self) -> dict:
+        """Serialize for vector-store metadata."""
+        return {
+            "chunk_id": self.chunk_id,
+            "text": self.text,
+            "page": self.page,
+            "section": self.section,
+            "char_start": self.char_start,
+            "char_end": self.char_end,
+        }
+
 
 def chunk_document(
     doc: ParsedDocument,
@@ -127,6 +138,35 @@ def _split_long_paragraph(para: str, chunk_size: int) -> List[str]:
     if buf:
         result.append(buf)
     return result or [para]
+
+
+def chunk_text(text: str, chunk_size: int = 500, chunk_overlap: int = 80) -> List[Chunk]:
+    """Convenience wrapper: split a raw string into Chunk objects.
+
+    Backwards-compatible with tests/examples that pass plain text instead of
+    a ParsedDocument (e.g. tests/test_rag_accuracy.py).
+    """
+    if not text or not text.strip():
+        return []
+    pieces = _split_text(text, chunk_size=chunk_size, chunk_overlap=chunk_overlap)
+    chunks: List[Chunk] = []
+    offset = 0
+    for piece in pieces:
+        start = text.find(piece, offset)
+        if start == -1:
+            start = offset
+        offset = start + len(piece)
+        chunks.append(
+            Chunk(
+                chunk_id=uuid.uuid4().hex[:12],
+                text=piece,
+                page=None,
+                section="",
+                char_start=start,
+                char_end=start + len(piece),
+            )
+        )
+    return chunks
 
 
 def _hard_split(text: str, chunk_size: int, overlap: int) -> List[str]:
