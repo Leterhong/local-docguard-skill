@@ -34,8 +34,8 @@ class LocalLLMBridge:
         server_script: str,
         model_dir: str,
         device: str = "CPU",
-        start_timeout: int = 120,
-        gen_timeout: int = 180,
+        start_timeout: int = 180,
+        gen_timeout: int = 300,
     ):
         self.python_exe = python_exe
         self.server_script = server_script

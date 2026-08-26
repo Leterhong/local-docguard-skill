@@ -84,8 +84,12 @@ def _start_server_subprocess() -> None:
         )
 
 
-def post_json(path: str, payload: Dict[str, Any], timeout: float = 300.0) -> Dict[str, Any]:
-    """POST JSON to the local server and return the parsed response."""
+def post_json(path: str, payload: Dict[str, Any], timeout: float = 600.0) -> Dict[str, Any]:
+    """POST JSON to the local server and return the parsed response.
+
+    默认 600s：本地 7B 模型在纯 CPU 慢机上多步推理可能超过 300s，
+    过短会客户端先超时报错、服务端仍在空烧算力。
+    """
     import urllib.request
     import urllib.error
 

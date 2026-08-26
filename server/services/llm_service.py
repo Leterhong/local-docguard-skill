@@ -228,11 +228,14 @@ class LLMService:
         server_script = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "openvino_gen_server.py"
         )
+        # 超时可经 model_config.yaml providers.local.start_timeout / gen_timeout 调整
         self._openvino_bridge = LocalLLMBridge(
             python_exe=python_exe,
             server_script=server_script,
             model_dir=model_dir,
             device=self.device,
+            start_timeout=int(local_cfg.get("start_timeout", 180)),
+            gen_timeout=int(local_cfg.get("gen_timeout", 300)),
         )
         self._backend = "openvino-genai"
         self.available = True
