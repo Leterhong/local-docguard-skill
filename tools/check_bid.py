@@ -57,14 +57,14 @@ def check_bid(
     if document_id:
         payload["document_id"] = document_id
     elif tender_path:
-        payload["file_path"] = upload_file(tender_path)
+        payload["file_path"] = upload_file(tender_path, user_id=user_id)
     else:
         raise ValueError("Provide either --tender <file> or --doc-id <id>")
 
     if profile_file:
         if not Path(profile_file).exists():
             raise FileNotFoundError(f"Profile file not found: {profile_file}")
-        payload["profile_file"] = upload_file(profile_file)
+        payload["profile_file"] = upload_file(profile_file, user_id=user_id)
 
     resp = post_json("/api/bid/check", payload, timeout=600)
     if not resp.get("success"):

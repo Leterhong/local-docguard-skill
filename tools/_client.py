@@ -120,7 +120,7 @@ def get_json(path: str, timeout: float = 30.0) -> Dict[str, Any]:
         raise RuntimeError(f"API error {exc.code}: {body}") from exc
 
 
-def upload_file(local_path: str, timeout: float = 60.0) -> str:
+def upload_file(local_path: str, timeout: float = 60.0, user_id: str = "default") -> str:
     """Upload a local document to the server's isolated uploads folder.
 
     Returns the server-side absolute file_path that /api/analyze accepts.
@@ -140,6 +140,9 @@ def upload_file(local_path: str, timeout: float = 60.0) -> str:
     crlf = b"\r\n"
     body = (
         b"--" + boundary.encode() + crlf
+        + f'Content-Disposition: form-data; name="user_id"\r\n\r\n'.encode()
+        + user_id.encode("utf-8") + crlf
+        + b"--" + boundary.encode() + crlf
         + f'Content-Disposition: form-data; name="file"; filename="{filename}"'.encode()
         + crlf
         + b"Content-Type: application/octet-stream" + crlf + crlf

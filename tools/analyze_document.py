@@ -45,7 +45,7 @@ def analyze_document(
     at any local document without relaxing the security boundary.
     """
     ensure_running(auto_start=auto_start)
-    server_path = upload_file(file_path)
+    server_path = upload_file(file_path, user_id=user_id)
     payload = {
         "file_path": server_path,
         "use_llm": use_llm,

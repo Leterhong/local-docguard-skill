@@ -66,7 +66,7 @@ def agent_run(
     if doc_type_hint:
         payload["doc_type_hint"] = doc_type_hint
     if file_paths:
-        payload["file_paths"] = [upload_file(p) for p in file_paths]
+        payload["file_paths"] = [upload_file(p, user_id=user_id) for p in file_paths]
 
     resp = post_json("/api/agent/run", payload, timeout=1800)
     if not resp.get("success"):
