@@ -418,6 +418,16 @@ class Orchestrator:
                     path = candidates[0]
         if not path:
             raise ValueError("analyze_document 需要 file_path")
+        # 安全：与 /api/analyze 相同的白名单校验。兜底逻辑只会把路径映射回
+        # 已上传文件（upload 沙箱或 samples），这里再拒绝任何落在工作区之外的
+        # 路径，防止 LLM 幻觉出的本机文件被读取。
+        from server.config import get_settings
+        from server.services.security import resolve_input_file
+
+        try:
+            path = resolve_input_file(str(path), get_settings(), ctx.get("user_id", "default"))
+        except (FileNotFoundError, PermissionError) as exc:
+            raise ValueError(f"analyze_document 文件不可访问：{exc}")
         # engine.analyze expects a DocumentType enum (or None), but the LLM
         # planner may pass a plain string like "tender".
         hint = args.get("doc_type_hint")
@@ -486,7 +496,10 @@ class Orchestrator:
     def _tool_compare(self, ctx, args):
         from pathlib import Path
 
+        from server.config import get_settings
         from server.services.document_compare import compare_documents
+        from server.services.security import resolve_input_file
+
         a = args.get("file_path_a")
         b = args.get("file_path_b")
         if not a or not b:
@@ -495,6 +508,12 @@ class Orchestrator:
                 a, b = files[0], files[1]
         if not a or not b:
             raise ValueError("compare_versions 需要 file_path_a 和 file_path_b")
+        # 与 _tool_analyze 相同的白名单校验，拒绝工作区之外的路径
+        try:
+            a = resolve_input_file(str(a), get_settings(), ctx.get("user_id", "default"))
+            b = resolve_input_file(str(b), get_settings(), ctx.get("user_id", "default"))
+        except (FileNotFoundError, PermissionError) as exc:
+            raise ValueError(f"compare_versions 文件不可访问：{exc}")
         ocr = self.container.ocr if self.container.ocr.available else None
         # compare_documents works on Path objects (it reads .name/.suffix).
         result = compare_documents(Path(str(a)), Path(str(b)), ocr_service=ocr)
