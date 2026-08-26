@@ -39,7 +39,11 @@ if ($args.Length -gt 1) { $rest = $args[1..($args.Length - 1)] }
 
 # 2) 确保本地环境就绪（独立 install-env.ps1：建 venv + 装依赖，仅首次）
 Write-DGLog "ensure env via scripts/install-env.ps1"
-& $PSHOME\powershell.exe -NoProfile -File (Join-Path $ScriptDir 'install-env.ps1')
+# 兼容 PowerShell 5.1 与 PowerShell 7：优先用当前宿主解释器，避免 pwsh 下 $PSHOME 无 powershell.exe
+$hostExe = $null
+try { $hostExe = (Get-Process -Id $PID).Path } catch { $hostExe = $null }
+if (-not $hostExe -or -not (Test-Path $hostExe)) { $hostExe = Join-Path $PSHOME 'powershell.exe' }
+& $hostExe -NoProfile -File (Join-Path $ScriptDir 'install-env.ps1')
 if ($LASTEXITCODE -ne 0) {
     Write-DGLog "install-env failed (exit=$LASTEXITCODE)"
     exit 1
@@ -54,3 +58,6 @@ switch ($action) {
     'serve'   { Write-DGLog "route -> server.py"; & $py scripts/server.py @rest }
     default   { Write-DGLog "route -> client.py $action"; & $py scripts/client.py $action @rest }
 }
+
+# 5) 传播工具退出码给宿主（技能规范：宿主依赖非零退出码识别失败）
+exit $LASTEXITCODE
