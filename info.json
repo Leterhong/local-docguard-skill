@@ -1,7 +1,7 @@
 {
     "venv_name": "docguard",
-    "python_version": "3.11",
-    "mem_need_gb": 8,
+    "python_version": "3.13",
+    "mem_need_gb": 16,
     "server_alive_timeout": 300,
     "models": [
         {
