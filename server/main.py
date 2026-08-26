@@ -119,6 +119,15 @@ def _on_startup():
 @app.on_event("shutdown")
 def _on_shutdown():
     logger.info("DocGuard AI shutting down.")
+    # 回收本地大模型子进程，避免数 GB 内存的孤儿进程残留
+    try:
+        container = get_container()
+        llm = container.llm
+        if llm is not None and hasattr(llm, "stop"):
+            llm.stop()
+            logger.info("Local LLM subprocess recycled.")
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("LLM shutdown cleanup failed: %s", exc)
 
 
 def main():

@@ -9,6 +9,12 @@ DocGuard 主服务（运行在自身 venv，可能未安装 openvino-genai）通
 用法：
     bridge = LocalLLMBridge(python_exe, server_script, model_dir, device="CPU")
     text = bridge.generate(user="...", system="...", max_new_tokens=256)
+
+生命周期说明：
+    - stderr 由后台守护线程持续排空，防止管道写满导致子进程阻塞；
+    - 生成超时后主动回收子进程，下次调用重新拉起，避免「响应串位」
+      （上一个请求的陈旧响应被下一个请求读到）；
+    - 服务退出时必须调用 stop() 回收子进程，否则会残留数 GB 的孤儿进程。
 """
 from __future__ import annotations
 
@@ -17,6 +23,7 @@ import os
 import subprocess
 import threading
 import time
+from collections import deque
 from typing import Optional
 
 
@@ -40,6 +47,49 @@ class LocalLLMBridge:
         self._lock = threading.Lock()
         self._started = False
         self.last_error = ""
+        self._stderr_tail = deque(maxlen=20)
+        self._stderr_thread: Optional[threading.Thread] = None
+
+    # ------------------------------------------------------------------
+    def _drain_stderr(self) -> None:
+        """后台线程：持续消费子进程 stderr，防止管道缓冲写满后子进程写阻塞。"""
+        proc = self._proc
+        if proc is None or proc.stderr is None:
+            return
+        try:
+            for line in iter(proc.stderr.readline, ""):
+                line = line.strip()
+                if line:
+                    self._stderr_tail.append(line)
+        except Exception:
+            pass
+
+    # ------------------------------------------------------------------
+    def _kill_locked(self) -> None:
+        """终止并回收子进程。调用方必须已持有 self._lock。"""
+        proc = self._proc
+        self._proc = None
+        self._started = False
+        if proc is None:
+            return
+        try:
+            proc.terminate()
+        except Exception:
+            pass
+        try:
+            proc.wait(timeout=5)
+        except Exception:
+            try:
+                proc.kill()
+                proc.wait(timeout=5)
+            except Exception:
+                pass
+        for stream in (proc.stdin, proc.stdout, proc.stderr):
+            try:
+                if stream is not None:
+                    stream.close()
+            except Exception:
+                pass
 
     # ------------------------------------------------------------------
     def ensure_started(self) -> bool:
@@ -60,6 +110,8 @@ class LocalLLMBridge:
                     stderr=subprocess.PIPE,
                     env=env,
                     text=True,
+                    encoding="utf-8",
+                    errors="replace",
                     bufsize=1,
                 )
                 start = time.time()
@@ -67,17 +119,27 @@ class LocalLLMBridge:
                 while time.time() - start < self.start_timeout:
                     if self._proc.poll() is not None:
                         self.last_error = (self._proc.stderr.read() or "")[:500]
+                        self._kill_locked()
                         return False
                     line = self._proc.stdout.readline()
                     if line.startswith("READY"):
                         self._started = True
+                        self._stderr_thread = threading.Thread(
+                            target=self._drain_stderr,
+                            daemon=True,
+                            name="dg-llm-stderr",
+                        )
+                        self._stderr_thread.start()
                         return True
                     if line:
                         banner = line.strip()
                 self.last_error = "timeout waiting READY (last=%s)" % banner
+                # 启动超时同样要回收，否则残留半初始化的孤儿进程
+                self._kill_locked()
                 return False
             except Exception as exc:  # noqa: BLE001
                 self.last_error = str(exc)
+                self._kill_locked()
                 return False
 
     # ------------------------------------------------------------------
@@ -99,6 +161,9 @@ class LocalLLMBridge:
                 start = time.time()
                 while time.time() - start < self.gen_timeout:
                     if self._proc.poll() is not None:
+                        # 子进程中途死亡：重置状态，下次调用重新拉起
+                        self.last_error = "llm subprocess exited unexpectedly"
+                        self._kill_locked()
                         return ""
                     line = self._proc.stdout.readline()
                     if not line:
@@ -112,19 +177,26 @@ class LocalLLMBridge:
                             return resp.get("text", "")
                         self.last_error = resp.get("error", "unknown")
                         return ""
-                self.last_error = "generation timeout"
+                # 生成超时：回收子进程，防止陈旧响应串位到下一个请求
+                self.last_error = "generation timeout (subprocess recycled)"
+                self._kill_locked()
                 return ""
             except Exception as exc:  # noqa: BLE001
                 self.last_error = str(exc)
+                self._kill_locked()
                 return ""
 
     # ------------------------------------------------------------------
+    def stderr_tail(self, n: int = 5) -> str:
+        """返回最近 n 条子进程 stderr 输出，用于诊断。"""
+        return " / ".join(list(self._stderr_tail)[-n:])
+
+    # ------------------------------------------------------------------
     def stop(self) -> None:
+        """回收子进程（服务退出时必须调用，否则残留数 GB 孤儿进程）。"""
         with self._lock:
-            if self._proc is not None:
-                try:
-                    self._proc.terminate()
-                except Exception:
-                    pass
-                self._proc = None
-                self._started = False
+            self._kill_locked()
+        t = self._stderr_thread
+        if t is not None and t.is_alive():
+            t.join(timeout=2)
+        self._stderr_thread = None

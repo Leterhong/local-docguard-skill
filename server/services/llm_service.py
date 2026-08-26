@@ -62,6 +62,16 @@ class LLMService:
         self._load_model()
 
     # ------------------------------------------------------------------
+    def stop(self) -> None:
+        """回收本地 OpenVINO 子进程（服务退出时调用，防止数 GB 孤儿进程残留）。"""
+        bridge = self._openvino_bridge
+        if bridge is not None:
+            try:
+                bridge.stop()
+            except Exception:  # noqa: BLE001
+                pass
+
+    # ------------------------------------------------------------------
     # Provider management
     # ------------------------------------------------------------------
     def list_providers(self) -> List[Dict[str, Any]]:
@@ -205,7 +215,7 @@ class LLMService:
         try:
             probe = subprocess.run(
                 [python_exe, "-c", "import openvino_genai, sys; print(openvino_genai.__version__)"],
-                capture_output=True, text=True, timeout=30,
+                capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30,
             )
             if probe.returncode != 0:
                 logger.warning("openvino_genai import failed in %s: %s", python_exe, probe.stderr.strip())
