@@ -90,9 +90,13 @@ async def check_bid(req: BidCheckRequest):
     # 3) run matching (LLM only when available AND requested AND not cloud-forced-off)
     llm = container.llm if req.use_llm else None
     if req.use_cloud:
-        # honor local-only lock: never use cloud if locked
-        if llm is not None and settings.is_local_only():
-            llm = container.llm  # stays local
+        # 云端增强目前统一受 local_only 锁约束：默认纯本地，use_cloud 不生效。
+        # 明确记录而非静默空操作，便于用户排查「为何仍走本地」。
+        if settings.is_local_only():
+            logger.info("check_bid use_cloud requested but local_only is enforced; staying local.")
+        elif llm is not None and hasattr(llm, "set_provider"):
+            # 仅在显式开启云端时切换到 cloud provider，避免默认路径的任何行为变化
+            llm.set_provider("cloud")
     matcher = BidMatcher(llm_service=llm)
     result = matcher.evaluate(requirements, profile)
     result["tender_name"] = tender_name

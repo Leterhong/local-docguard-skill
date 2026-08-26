@@ -13,6 +13,7 @@ a brute-force numpy implementation so RAG still functions.
 from __future__ import annotations
 
 import json
+import os
 import threading
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
@@ -118,6 +119,12 @@ class VectorStore:
         # Vectors must be supplied via add(); if missing, re-encode externally.
         # Here we keep whatever vectors were attached; add() handles persistence.
         if self._vectors is None:
+            logger.warning(
+                "Vector store has %d records but no vectors on disk "
+                "(FAISS index missing or backend unavailable); "
+                "semantic retrieval is degraded until documents are re-added.",
+                len(self._records),
+            )
             self._vectors = np.zeros((len(self._records), self.dim), dtype=np.float32)
 
     # ------------------------------------------------------------------
@@ -253,13 +260,18 @@ class VectorStore:
     # Persistence
     # ------------------------------------------------------------------
     def _persist(self) -> None:
+        """原子落盘：先写临时文件再替换，写入中途崩溃不会损坏既有索引。"""
         try:
-            self.meta_path.write_text(
+            tmp_meta = self.store_dir / "chunks.json.tmp"
+            tmp_meta.write_text(
                 json.dumps([asdict(r) for r in self._records], ensure_ascii=False, indent=2),
                 encoding="utf-8",
             )
+            os.replace(tmp_meta, self.meta_path)
             if self._faiss_available and self._index is not None:
-                self._faiss.write_index(self._index, str(self.index_path))
+                tmp_index = self.store_dir / "faiss.index.tmp"
+                self._faiss.write_index(self._index, str(tmp_index))
+                os.replace(tmp_index, self.index_path)
         except Exception as exc:  # noqa: BLE001
             logger.warning("Failed to persist vector store: %s", exc)
 

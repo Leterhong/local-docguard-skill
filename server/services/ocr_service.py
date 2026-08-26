@@ -116,15 +116,26 @@ class OcrService:
         """
         if not self.available:
             return []
+        import shutil
+
         images = self._render_pdf_to_images(pdf_path)
         pages: List[str] = []
-        for i, img in enumerate(images, start=1):
-            text = self.ocr_image(img)
-            pages.append(text)
-            try:
-                img.unlink(missing_ok=True)
-            except Exception:  # noqa: BLE001
-                pass
+        try:
+            for i, img in enumerate(images, start=1):
+                text = self.ocr_image(img)
+                pages.append(text)
+                try:
+                    img.unlink(missing_ok=True)
+                except Exception:  # noqa: BLE001
+                    pass
+        finally:
+            # 清理渲染用的临时目录，防止长期运行目录泄漏
+            if images:
+                tmpdir = images[0].parent
+                try:
+                    shutil.rmtree(tmpdir, ignore_errors=True)
+                except Exception:  # noqa: BLE001
+                    pass
         return pages
 
     def _render_pdf_to_images(self, pdf_path: Path) -> List[Path]:

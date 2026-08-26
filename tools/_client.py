@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import json
 import os
-import socket
 import subprocess
 import sys
 import time
@@ -27,11 +26,22 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 
-def is_server_running(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT, timeout: float = 0.5) -> bool:
-    """Check whether the DocGuard server port is listening."""
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.settimeout(timeout)
-        return sock.connect_ex((host, port)) == 0
+def is_server_running(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT, timeout: float = 1.0) -> bool:
+    """Check the DocGuard /api/health endpoint, not just a listening port.
+
+    仅做 TCP connect 会把端口被其他程序占用误判为「服务就绪」，
+    这里改为真正探测健康接口。
+    """
+    import urllib.request
+    import urllib.error
+
+    try:
+        with urllib.request.urlopen(
+            f"http://{host}:{port}/api/health", timeout=timeout
+        ) as resp:
+            return resp.status == 200
+    except (urllib.error.URLError, ConnectionError, OSError):
+        return False
 
 
 def wait_for_server(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT, timeout: float = 60.0) -> bool:

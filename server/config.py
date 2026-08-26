@@ -7,12 +7,15 @@ can be started from any working directory.
 """
 from __future__ import annotations
 
+import logging
 import os
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import yaml
+
+logger = logging.getLogger("docguard.config")
 
 # Project root = parent of the server/ directory.
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -92,6 +95,13 @@ class Settings:
         return self.server_cfg.get("host", "127.0.0.1")
 
     def port(self) -> int:
+        # 环境变量优先，与客户端 DOCGUARD_PORT 保持一致，避免双源不一致
+        env_port = os.environ.get("DOCGUARD_PORT", "").strip()
+        if env_port:
+            try:
+                return int(env_port)
+            except ValueError:
+                logger.warning("Invalid DOCGUARD_PORT=%r; falling back to config.", env_port)
         return int(self.server_cfg.get("port", 8765))
 
     def cors_origins(self) -> List[str]:

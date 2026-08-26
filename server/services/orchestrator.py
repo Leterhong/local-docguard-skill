@@ -472,8 +472,10 @@ class Orchestrator:
         requirements = list(cached.requirements)
         if not requirements:
             # Re-extract on the fly if the cached doc carried none.
+            from pathlib import Path
+
             from server.services.document_parser import parse_document
-            doc = parse_document(cached.file_path)
+            doc = parse_document(Path(str(cached.file_path)))
             requirements = TenderRuleEngine().extract_requirements(doc.full_text)
 
         matcher = BidMatcher(llm_service=self.container.llm if getattr(self.container.llm, "available", False) else None)

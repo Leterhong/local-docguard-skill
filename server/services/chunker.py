@@ -170,6 +170,13 @@ def chunk_text(text: str, chunk_size: int = 500, chunk_overlap: int = 80) -> Lis
 
 
 def _hard_split(text: str, chunk_size: int, overlap: int) -> List[str]:
+    # 防御：overlap >= chunk_size 时游标不前进，会造成死循环
+    if chunk_size <= 0:
+        raise ValueError(f"chunk_size must be positive, got {chunk_size}")
+    if overlap >= chunk_size:
+        raise ValueError(
+            f"overlap ({overlap}) must be smaller than chunk_size ({chunk_size})"
+        )
     out = []
     start = 0
     while start < len(text):
